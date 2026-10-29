@@ -4,7 +4,7 @@ COMPOSE := docker compose
 export HOST_UID := $(shell id -u)
 .DEFAULT_GOAL := help
 
-.PHONY: help setup models voices dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench bench-tts
+.PHONY: help setup models voices dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench bench-tts stt-models bench-stt
 
 help: ## List commands
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  make %-10s %s\n",$$1,$$2}'
@@ -22,6 +22,9 @@ models: ## Download the AI models (internet, one-time)
 
 voices: ## Download the Piper voices (internet, one-time, ~300 MB; licenses in shared/voices.ts)
 	npx tsx scripts/download-voices.ts
+
+stt-models: ## Download the Whisper speech-to-text models (internet, one-time, ~890 MB)
+	npx tsx scripts/download-stt.ts $(ARGS)
 
 dev: deps-up ## Start everything for development; Ctrl+C stops it all
 	@trap '$(COMPOSE) down' EXIT; npm run dev
@@ -65,3 +68,6 @@ bench: deps-up ## LLM benchmark on realistic prompts (~20-30 min; ARGS="--quick"
 
 bench-tts: deps-up ## Text-to-speech speed per voice (first-sentence latency, real-time factor)
 	npx tsx scripts/bench-tts.ts $(ARGS)
+
+bench-stt: deps-up ## Speech-to-text accuracy (WER) and speed per Whisper model (~10 min)
+	npx tsx scripts/bench-stt.ts $(ARGS)

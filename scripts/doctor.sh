@@ -66,7 +66,14 @@ else
     pass "Piper voices: $(ls "$MODELS_DIR/piper" | sed -n 's/\.onnx$//p' | xargs)"
   else warn "Piper voice $voice not downloaded yet: run make voices"; fi
 
-  for svc in ollama piper; do
+  if docker image inspect ai-interview-coach-whisper:1.9.5 >/dev/null 2>&1; then pass "image ai-interview-coach-whisper:1.9.5 built"
+  else warn "Whisper image not built yet: run make setup"; fi
+
+  wmodel=${WHISPER_MODEL:-ggml-base.en.bin}
+  if [[ -f "$MODELS_DIR/whisper/$wmodel" ]]; then pass "Whisper model $wmodel downloaded"
+  else warn "Whisper model $wmodel not downloaded yet: run make stt-models"; fi
+
+  for svc in ollama piper whisper; do
     if [[ -n "$(docker compose ps -q --status running $svc 2>/dev/null)" ]]; then
       health=$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q $svc)")
       [[ "$health" == healthy ]] && pass "$svc container running and healthy" || warn "$svc container is $health"

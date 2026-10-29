@@ -64,3 +64,32 @@ services:
       timeout: 5s
       retries: 6
       start_period: 15s
+
+  whisper:
+    build:
+      context: docker
+      dockerfile: whisper.Dockerfile
+      args:
+        UID: ${HOST_UID:-1000}
+    image: ai-interview-coach-whisper:1.9.5
+    restart: on-failure:5
+    init: true
+    ports:
+      - '127.0.0.1:${WHISPER_PORT:-5160}:8080' # this computer only
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-ggml-base.en.bin}
+      WHISPER_THREADS: ${WHISPER_THREADS:-8}
+    volumes:
+      - type: bind
+        source: ${MODELS_DIR:?MODELS_DIR is not set; run make setup}/whisper
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
+    mem_limit: ${WHISPER_MEM_LIMIT:-1g} # base.en ~250 MB, small.en ~640 MB
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:8080/health']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s

@@ -14,9 +14,12 @@ import { StructuredOutputError } from './llm/structured';
 import { healthRoutes } from './routes/health';
 import { llmRoutes } from './routes/llm';
 import { speechRoutes } from './routes/speech';
+import { sttRoutes } from './routes/stt';
 import { sessionRoutes } from './routes/sessions';
 import { settingsRoutes } from './routes/settings';
 import { PhraseCache } from './speech/phraseCache';
+import { SampleStore } from './speech/samples';
+import { SttError, SttUnavailableError, WhisperClient } from './speech/sttClient';
 import { TextToSpeech } from './speech/tts';
 import { PiperClient, TtsError, TtsUnavailableError } from './speech/ttsClient';
 
@@ -39,8 +42,9 @@ const CSP = [
 export type AppOptions = {
   /** Interview engine overrides (tests use short timeouts). */
   engine?: Partial<EngineDeps>;
-  /** Waits before retrying an unreachable Piper (tests use none). */
+  /** Waits before retrying an unreachable Piper / Whisper (tests use none). */
   ttsRetryDelaysMs?: number[];
+  sttRetryDelaysMs?: number[];
 };
 
 export async function buildApp(env: Env, db: Db, version: string, options: AppOptions = {}) {
@@ -59,8 +63,9 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
     if (err instanceof OllamaError) {
       return reply.code(err instanceof OllamaUnavailableError ? 503 : 502).send({ error: err.message, hint: err.hint });
     }
-    if (err instanceof TtsError) {
-      return reply.code(err instanceof TtsUnavailableError ? 503 : 502).send({ error: err.message, hint: err.hint });
+    if (err instanceof TtsError || err instanceof SttError) {
+      const unavailable = err instanceof TtsUnavailableError || err instanceof SttUnavailableError;
+      return reply.code(unavailable ? 503 : 502).send({ error: err.message, hint: err.hint });
     }
     if (err instanceof StructuredOutputError) {
       app.log.warn({ raw: err.raw.slice(0, 500) }, err.message);
@@ -75,10 +80,12 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
   const llm = new OllamaClient(env.OLLAMA_URL);
   const piper = new PiperClient(env.PIPER_URL, options.ttsRetryDelaysMs);
   const tts = new TextToSpeech(piper, new PhraseCache(join(env.DATA_DIR, 'tts-cache')), settings);
-  healthRoutes(app, env, db, version, piper);
+  const whisper = new WhisperClient(env.WHISPER_URL, options.sttRetryDelaysMs);
+  healthRoutes(app, env, db, version, { piper, whisper });
   settingsRoutes(app, env, db);
   llmRoutes(app, env, llm);
   speechRoutes(app, tts, piper, settings);
+  sttRoutes(app, whisper, env.WHISPER_MODEL, new SampleStore(join(env.DATA_DIR, 'stt-samples')));
   if (env.NODE_ENV !== 'test') {
     // Fixed phrases get cached audio right away, so the first interview never waits for them.
     app.addHook('onListen', async () => {

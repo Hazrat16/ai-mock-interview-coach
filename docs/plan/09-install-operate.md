@@ -48,7 +48,7 @@ npm start            # or: scripts/coach start   → opens http://127.0.0.1:4317
 # Ctrl+C or scripts/coach stop  → stops app, whisper, piper, and ollama (if the app started it)
 scripts/coach status # what is running, memory use
 ```
-Before practice: plug in AC power, close heavy browser tabs, and use headphones.
+Before practice: plug in AC power, close heavy browser tabs, and keep the speaker volume moderate (the mic stays closed while the interviewer speaks).
 
 ## 5. Troubleshooting
 | Symptom | Check / fix |

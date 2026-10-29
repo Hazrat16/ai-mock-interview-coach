@@ -15,6 +15,9 @@ const envSchema = z.object({
   PIPER_URL: z.url().default('http://127.0.0.1:5150'),
   /** The voice the Piper container loads at start; Settings can pick another installed voice. */
   PIPER_DEFAULT_VOICE: z.enum(VOICE_IDS).default(DEFAULT_VOICE),
+  WHISPER_URL: z.url().default('http://127.0.0.1:5160'),
+  /** The model file whisper-server loads (shown in Settings; the container reads the same variable). */
+  WHISPER_MODEL: z.string().min(1).default('ggml-base.en.bin'),
   /** CPU threads for the LLM. Unset = Ollama's default. Tune with `make bench`. */
   LLM_NUM_THREAD: z.coerce.number().int().min(1).max(64).optional(),
 });

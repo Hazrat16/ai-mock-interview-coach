@@ -17,8 +17,8 @@ I am not a lawyer; this is a practical audit, not legal advice.
 | `granite4:3b` weights | Apache-2.0 | V (ollama.com) | No | No | No | No |
 | `gemma4` (alternative) | Apache-2.0 | V (HF card) | No | No | No | No |
 | `ministral-3` (alternative) | Apache-2.0 | V (ollama.com) | No | No | No | No |
-| whisper.cpp | MIT | V | No | No | No | No (model download script uses Hugging Face once) |
-| Whisper model weights | MIT | K | No | No | No | No |
+| whisper.cpp v1.9.5 (ggml-org) | MIT | **V (M6, GitHub API)** | No | No | No | No (built from the pinned tag; model download uses Hugging Face once) |
+| Whisper model weights (`base.en`, `small.en`, ggml format from `ggerganov/whisper.cpp`) | MIT (OpenAI release; HF repo license MIT) | **V (M6)** | No | No | No | No (pinned commit, SHA-256 checked) |
 | Piper engine (`piper-tts`, OHF-Voice/piper1-gpl) | GPL-3.0 | V | No | No | No | No. Voice download script contacts Hugging Face once |
 | Piper voice `en_US-lessac-*` | Dataset licensed **non-commercial research only, no redistribution** | V | – | – | – | **Not used** |
 | Piper voices used: `en_US-ljspeech-medium` (default), `-high`, `en_US-joe-medium`, `en_US-norman-medium` | MODEL_CARD datasets: LJ Speech public domain, OHF voice-datasets CC0, LibriVox public domain. Voice repo (rhasspy/piper-voices) MIT | **V (M5, [record](../benchmarks/2026-10-29-tts.md))** | No | No | No | No (download once at a pinned commit, SHA-256 checked) |

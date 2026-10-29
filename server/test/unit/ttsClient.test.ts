@@ -1,7 +1,8 @@
 import { createServer } from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
-import { PiperClient, parseWav, TtsError, TtsUnavailableError } from '../../src/speech/ttsClient';
+import { PiperClient, TtsUnavailableError } from '../../src/speech/ttsClient';
+import { InvalidWavError, parseWav } from '../../src/speech/wav';
 import { type FakePiper, makeWav, startFakePiper } from '../helpers/fakePiper';
 
 let fake: FakePiper | undefined;
@@ -27,10 +28,10 @@ describe('parseWav', () => {
   });
 
   it('rejects an HTML error page and a non-PCM file', () => {
-    expect(() => parseWav(Buffer.from('<h1>Internal Server Error</h1>'.padEnd(60)))).toThrow(TtsError);
+    expect(() => parseWav(Buffer.from('<h1>Internal Server Error</h1>'.padEnd(60)))).toThrow(InvalidWavError);
     const float = makeWav();
     float.writeUInt16LE(3, 20); // IEEE float
-    expect(() => parseWav(float)).toThrow(/non-PCM/);
+    expect(() => parseWav(float)).toThrow(/not PCM/);
   });
 });
 

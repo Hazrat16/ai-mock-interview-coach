@@ -115,9 +115,9 @@ Every milestone ends with this **Definition of Done**:
 **Files:** `scripts/copy-vad-assets.mjs`, `web/public/vad/`, `web/src/audio/{mic,vad,wav}.ts`, `components/interview/*`, `turnMachine.ts` extended, `delivery.ts`.
 **Tasks:** permission flow; recording indicator; segment-wise STT while speaking; end-of-answer logic (Done, Space, silence countdown, max length); thinking time; pause, resume, repeat, skip, end; transcript toggle; "didn't catch that" flow; all recovery paths in 04 §6; delivery metrics.
 **Tests:** turnMachine for every control in every state; Playwright e2e with a fake mic WAV covering an answer, follow-up, and next question; an e2e test asserting that **every request goes to 127.0.0.1**.
-**Manual (with headphones):** a 3-question interview; deny the permission once; unplug the headset mid-answer; stop whisper mid-session.
+**Manual (with the laptop speakers, D3):** a 3-question interview; deny the permission once; unplug the headset mid-answer; stop whisper mid-session.
 **Acceptance:** R3, R4, R5 met; end-to-end turn latency measured and recorded.
-**Failures:** VAD assets 404 (copy script); the VAD cuts sentences (raise `redemptionMs`); TTS heard by the mic (headphones, mic closed during TTS); AudioContext suspended until user gesture.
+**Failures:** VAD assets 404 (copy script); the VAD cuts sentences (raise `redemptionMs`); TTS heard by the mic (mic closed during TTS, short pause after TTS ends, echo cancellation on); AudioContext suspended until user gesture.
 
 ## M8. Evaluation and reports (**MVP**)
 **Files:** `evaluation/rubrics/*.ts`, `evaluator.ts`, `scoring.ts`, `evidence.ts`, `jobRunner.ts`, `llm/prompts/evaluator.ts`, `shared/schemas/evaluation.ts`, `routes/evaluations.ts`, `pages/Report.tsx`, `components/report/*`.

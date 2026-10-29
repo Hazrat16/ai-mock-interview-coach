@@ -1,6 +1,7 @@
 import os from 'node:os';
 import type { Health } from '@shared/schemas/health';
 import type { Env } from '../env';
+import type { WhisperClient } from '../speech/sttClient';
 import type { PiperClient } from '../speech/ttsClient';
 
 const LOW_MEMORY_GB = 6;
@@ -55,11 +56,23 @@ export async function checkTts(piper: PiperClient, voice: string): Promise<Healt
     : { status: 'degraded', voice, detail: `Voice ${voice} is not downloaded`, hint: 'Download with: make voices' };
 }
 
+export async function checkStt(whisper: WhisperClient, model: string): Promise<Health['stt']> {
+  return (await whisper.healthy())
+    ? { status: 'ok', model, detail: `whisper.cpp, model ${model}` }
+    : {
+        status: 'down',
+        model,
+        detail: 'Whisper is not running',
+        hint: 'Start it with: make deps-up (if it keeps stopping, download the model: make stt-models)',
+      };
+}
+
 export async function getHealth(
   env: Env,
   version: string,
   wantedModels: string[],
   tts: () => Promise<Health['tts']>,
+  stt: () => Promise<Health['stt']>,
 ): Promise<Health> {
   // os.freemem() reports MemAvailable on Linux, which counts reclaimable cache.
   const availableGb = gb(os.freemem());
@@ -67,6 +80,7 @@ export async function getHealth(
     app: { status: 'ok', version },
     ollama: await checkOllama(env, wantedModels),
     tts: await tts(),
+    stt: await stt(),
     memory: { availableGb, totalGb: gb(os.totalmem()), low: availableGb < LOW_MEMORY_GB },
   };
 }

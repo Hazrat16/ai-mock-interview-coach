@@ -50,7 +50,7 @@ These materially affect setup. My recommendation is listed first.
   - *(Recommended)* Move the repo to ext4, e.g. `~/code/ai-mock-interview-coach`, after freeing ~10 GB on `/`. Keep **model files** on the NTFS drive (`/media/hazrat/Hazrat8/ai-models/`). Keep the **SQLite database** on ext4 (`~/.local/share/ai-interview-coach/`).
   - Alternative: keep the repo on NTFS (slower `npm install`, file-watching quirks). The database must still be on ext4. This is not optional, because SQLite file locking and WAL shared memory are unreliable on FUSE filesystems.
 - **D2. Interview language.** ✅ Decided 2026-10-29: **English only** for v1 (enables the faster `*.en` Whisper models and an English voice).
-- **D3. Headphones.** ✅ Decided 2026-10-29: **headphones will be used.** The mic stays closed while the interviewer speaks as an extra safeguard.
+- **D3. Audio output.** ✅ Revised 2026-10-30: **laptop speakers** (first decided as headphones on 2026-10-29). The mic stays closed while the interviewer speaks, and the browser's echo cancellation stays on (M6 measured 9.9% WER with it on).
 - **D4. Freeing disk space on `/`.** You need to free roughly 10 GB on the root partition, or accept installing the Ollama binary to the NTFS drive. M0 lists both paths.
 
 ## Things that cannot be known until measured on your machine

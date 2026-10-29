@@ -16,6 +16,7 @@ export const healthSchema = z.object({
     available: z.array(z.string()),
   }),
   tts: componentStatusSchema.extend({ voice: z.string() }),
+  stt: componentStatusSchema.extend({ model: z.string() }),
   memory: z.object({ availableGb: z.number(), totalGb: z.number(), low: z.boolean() }),
 });
 

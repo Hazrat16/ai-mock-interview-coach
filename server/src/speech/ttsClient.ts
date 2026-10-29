@@ -1,4 +1,5 @@
 /** Client for the Piper HTTP server (POST /synthesize -> WAV). */
+import { parseWav } from './wav';
 
 export class TtsError extends Error {
   constructor(
@@ -19,37 +20,6 @@ export type SynthesizeOptions = {
   lengthScale: number;
   timeoutMs?: number;
 };
-
-export type WavInfo = { sampleRate: number; channels: number; bitsPerSample: number; durationSec: number };
-
-/** Reads the header of a PCM WAV file; throws if it is not one (e.g. an HTML error page). */
-export function parseWav(buf: Buffer): WavInfo {
-  if (buf.length < 44 || buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') {
-    throw new TtsError('Piper did not return a WAV file');
-  }
-  // Walk the chunks: "fmt " has the format, "data" the samples.
-  let offset = 12;
-  let fmt: Omit<WavInfo, 'durationSec'> | undefined;
-  while (offset + 8 <= buf.length) {
-    const id = buf.toString('ascii', offset, offset + 4);
-    const size = buf.readUInt32LE(offset + 4);
-    if (id === 'fmt ') {
-      if (buf.readUInt16LE(offset + 8) !== 1) throw new TtsError('Piper returned a non-PCM WAV file');
-      fmt = {
-        channels: buf.readUInt16LE(offset + 10),
-        sampleRate: buf.readUInt32LE(offset + 12),
-        bitsPerSample: buf.readUInt16LE(offset + 22),
-      };
-    } else if (id === 'data') {
-      if (!fmt) break;
-      const bytesPerSecond = fmt.sampleRate * fmt.channels * (fmt.bitsPerSample / 8);
-      const dataBytes = Math.min(size, buf.length - offset - 8);
-      return { ...fmt, durationSec: dataBytes / bytesPerSecond };
-    }
-    offset += 8 + size + (size % 2);
-  }
-  throw new TtsError('Piper returned an incomplete WAV file');
-}
 
 const RETRY_DELAYS_MS = [1000, 2000, 3000]; // ~6 s: long enough for Docker to restart a crashed Piper (~4 s)
 
@@ -86,7 +56,11 @@ export class PiperClient {
       signal: AbortSignal.timeout(timeoutMs),
     });
     const wav = Buffer.from(await res.arrayBuffer());
-    parseWav(wav);
+    try {
+      parseWav(wav);
+    } catch (err) {
+      throw new TtsError(`Piper returned a bad audio file: ${(err as Error).message}`, undefined, { cause: err });
+    }
     return wav;
   }
 

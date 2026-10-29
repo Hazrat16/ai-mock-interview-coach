@@ -5,7 +5,8 @@
 // Options: --runs N (default 3), --no-load (skip the LLM-load pass).
 import { splitSentences } from '../shared/text/sentences';
 import { VOICES } from '../shared/voices';
-import { PiperClient, parseWav } from '../server/src/speech/ttsClient';
+import { PiperClient } from '../server/src/speech/ttsClient';
+import { parseWav } from '../server/src/speech/wav';
 
 process.loadEnvFile('.env');
 const args = process.argv.slice(2);

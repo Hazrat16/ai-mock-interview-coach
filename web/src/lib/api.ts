@@ -22,3 +22,16 @@ export async function sendJson<T>(method: 'POST' | 'PUT', path: string, body: un
   });
   return parse(res, path, schema);
 }
+
+/** POST a recorded WAV (raw body) and validate the JSON response. */
+export async function postWav<T>(path: string, wav: Blob, schema: z.ZodType<T>): Promise<T> {
+  return parse(
+    await fetch(path, { method: 'POST', headers: { 'content-type': 'audio/wav' }, body: wav }),
+    path,
+    schema,
+  );
+}
+
+export async function deleteJson<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+  return parse(await fetch(path, { method: 'DELETE' }), path, schema);
+}

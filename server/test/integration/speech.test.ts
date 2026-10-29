@@ -8,7 +8,7 @@ import { buildApp } from '../../src/app';
 import { type Db, openMemoryDb } from '../../src/db/connection';
 import { migrate } from '../../src/db/migrate';
 import { parseEnv } from '../../src/env';
-import { parseWav } from '../../src/speech/ttsClient';
+import { parseWav } from '../../src/speech/wav';
 import { type FakePiper, startFakePiper } from '../helpers/fakePiper';
 
 let fake: FakePiper | undefined;
