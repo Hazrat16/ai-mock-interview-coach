@@ -1,14 +1,16 @@
 import { ChartLine, History, LayoutDashboard, Mic, Settings as SettingsIcon } from 'lucide-react';
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router';
 import { cn } from '@/lib/utils';
+import { Interview } from '@/pages/Interview';
+import { NewInterview } from '@/pages/NewInterview';
 import { Settings } from '@/pages/Settings';
 
 const nav = [
-  { to: '/', label: 'Dashboard', Icon: LayoutDashboard, milestone: 'M10' },
-  { to: '/interview/new', label: 'New interview', Icon: Mic, milestone: 'M4' },
-  { to: '/history', label: 'History', Icon: History, milestone: 'M10' },
-  { to: '/progress', label: 'Progress', Icon: ChartLine, milestone: 'M10' },
-  { to: '/settings', label: 'Settings', Icon: SettingsIcon },
+  { to: '/', label: 'Dashboard', Icon: LayoutDashboard, page: <ComingSoon title="Dashboard" milestone="M10" /> },
+  { to: '/interview/new', label: 'New interview', Icon: Mic, page: <NewInterview /> },
+  { to: '/history', label: 'History', Icon: History, page: <ComingSoon title="History" milestone="M10" /> },
+  { to: '/progress', label: 'Progress', Icon: ChartLine, page: <ComingSoon title="Progress" milestone="M10" /> },
+  { to: '/settings', label: 'Settings', Icon: SettingsIcon, page: <Settings /> },
 ];
 
 function ComingSoon({ title, milestone }: { title: string; milestone: string }) {
@@ -48,13 +50,10 @@ export function App() {
         </nav>
         <main className="flex-1 p-8">
           <Routes>
-            {nav.map(({ to, label, milestone }) => (
-              <Route
-                key={to}
-                path={to}
-                element={milestone ? <ComingSoon title={label} milestone={milestone} /> : <Settings />}
-              />
+            {nav.map(({ to, page }) => (
+              <Route key={to} path={to} element={page} />
             ))}
+            <Route path="/interview/:id" element={<Interview />} />
             <Route path="*" element={<ComingSoon title="Page not found" milestone="—" />} />
           </Routes>
         </main>

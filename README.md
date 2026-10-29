@@ -2,7 +2,7 @@
 
 A personal, audio-only mock interview app that runs entirely on this computer. It uses Ollama for the LLM, and will add whisper.cpp for speech-to-text and Piper for text-to-speech. There are no cloud services and no API keys.
 
-Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M3 (LLM integration and benchmark)**.
+Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M4 (interview logic, typed answers)**.
 
 ## How it runs
 

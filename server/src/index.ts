@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { buildApp } from './app';
 import { openDb } from './db/connection';
 import { migrate } from './db/migrate';
+import { seedQuestions } from './db/repos/questions';
 import { loadEnv } from './env';
 
 const env = loadEnv();
@@ -15,6 +16,9 @@ if (migration.to !== migration.from) {
   console.log(`Database schema upgraded v${migration.from} → v${migration.to}`);
   if (migration.backup) console.log(`  backup taken first: ${migration.backup}`);
 }
+
+const added = seedQuestions(db);
+if (added) console.log(`Question bank: added ${added} questions`);
 
 const app = await buildApp(env, db, version);
 

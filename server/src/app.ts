@@ -3,11 +3,15 @@ import { fileURLToPath } from 'node:url';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import type { Db } from './db/connection';
+import { defaultSettings, getSettings } from './db/repos/settings';
 import type { Env } from './env';
+import { HttpError } from './errors';
+import { type EngineDeps, InterviewEngine } from './interview/engine';
 import { OllamaClient, OllamaError, OllamaUnavailableError } from './llm/ollamaClient';
 import { StructuredOutputError } from './llm/structured';
 import { healthRoutes } from './routes/health';
 import { llmRoutes } from './routes/llm';
+import { sessionRoutes } from './routes/sessions';
 import { settingsRoutes } from './routes/settings';
 
 const WEB_DIST = fileURLToPath(new URL('../../dist/web', import.meta.url));
@@ -26,7 +30,8 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
-export async function buildApp(env: Env, db: Db, version: string) {
+/** `engine` overrides interview engine options (tests use short timeouts). */
+export async function buildApp(env: Env, db: Db, version: string, engine: Partial<EngineDeps> = {}) {
   // 'warn' keeps per-request lines (logged at info) out of the terminal.
   const app = Fastify({ logger: env.NODE_ENV === 'test' ? false : { level: 'warn' } });
 
@@ -38,6 +43,7 @@ export async function buildApp(env: Env, db: Db, version: string) {
 
   // LLM failures become a readable error plus what to do about it, instead of a bare 500.
   app.setErrorHandler((err, _req, reply) => {
+    if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.message });
     if (err instanceof OllamaError) {
       return reply.code(err instanceof OllamaUnavailableError ? 503 : 502).send({ error: err.message, hint: err.hint });
     }
@@ -53,6 +59,19 @@ export async function buildApp(env: Env, db: Db, version: string) {
   healthRoutes(app, env, db, version);
   settingsRoutes(app, env, db);
   llmRoutes(app, env, llm);
+  const defaults = defaultSettings(env);
+  sessionRoutes(
+    app,
+    new InterviewEngine({
+      db,
+      llm,
+      settings: () => getSettings(db, defaults),
+      numThread: env.LLM_NUM_THREAD,
+      warmUp: env.NODE_ENV !== 'test',
+      log: (msg) => app.log.info(msg),
+      ...engine,
+    }),
+  );
 
   // Production: serve the built UI. In development Vite serves it and proxies /api here.
   if (env.NODE_ENV === 'production') {
