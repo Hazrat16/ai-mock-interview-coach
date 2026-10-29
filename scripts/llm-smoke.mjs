@@ -6,8 +6,9 @@ import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 
 process.loadEnvFile('.env');
-const { OLLAMA_URL, INTERVIEWER_MODEL, FALLBACK_MODEL, OLLAMA_IMAGE_TAG, OLLAMA_MEM_LIMIT } = process.env;
-const models = [INTERVIEWER_MODEL, FALLBACK_MODEL];
+const { OLLAMA_URL, INTERVIEWER_MODEL, EVALUATOR_MODEL, FALLBACK_MODEL, OLLAMA_IMAGE_TAG, OLLAMA_MEM_LIMIT } =
+  process.env;
+const models = [...new Set([INTERVIEWER_MODEL, EVALUATOR_MODEL, FALLBACK_MODEL])];
 
 let fails = 0;
 const pass = (m) => console.log(`  \x1b[32mPASS\x1b[0m  ${m}`);

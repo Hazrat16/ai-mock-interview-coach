@@ -2,7 +2,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 .DEFAULT_GOAL := help
 
-.PHONY: help setup models dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke
+.PHONY: help setup models dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench
 
 help: ## List commands
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  make %-10s %s\n",$$1,$$2}'
@@ -13,7 +13,7 @@ setup: ## Create .env and folders, install npm packages, pull images (safe to re
 	$(COMPOSE) pull
 
 models: deps-up ## Download the AI models (internet, one-time)
-	@source scripts/lib.sh && load_env && for m in $$INTERVIEWER_MODEL $$FALLBACK_MODEL; do \
+	@source scripts/lib.sh && load_env && for m in $$(printf '%s\n' $$INTERVIEWER_MODEL $$EVALUATOR_MODEL $$FALLBACK_MODEL | sort -u); do \
 	  $(COMPOSE) exec ollama ollama pull "$$m" || exit 1; done
 
 dev: deps-up ## Start everything for development; Ctrl+C stops it all
@@ -52,3 +52,6 @@ doctor: ## Check machine and setup (PASS/WARN/FAIL)
 
 llm-smoke: ## LLM check: JSON output, no thinking text, timings
 	@node scripts/llm-smoke.mjs
+
+bench: deps-up ## LLM benchmark on realistic prompts (~20-30 min; ARGS="--quick" ~8 min)
+	npx tsx scripts/bench-llm.ts $(ARGS)

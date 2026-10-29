@@ -52,7 +52,7 @@ else
   if docker image inspect "ollama/ollama:$OLLAMA_IMAGE_TAG" >/dev/null 2>&1; then pass "image ollama/ollama:$OLLAMA_IMAGE_TAG present"
   else warn "image ollama/ollama:$OLLAMA_IMAGE_TAG not downloaded yet: run make setup"; fi
 
-  for m in $INTERVIEWER_MODEL $FALLBACK_MODEL; do
+  for m in $(printf '%s\n' $INTERVIEWER_MODEL $EVALUATOR_MODEL $FALLBACK_MODEL | sort -u); do
     name=${m%%:*}; tag=${m#*:}
     if [[ -f "$MODELS_DIR/ollama/manifests/registry.ollama.ai/library/$name/$tag" ]]; then pass "model $m downloaded"
     else warn "model $m not downloaded yet: run make models"; fi

@@ -1,26 +1,20 @@
-import { createServer, type Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { healthSchema } from '@shared/schemas/health';
 import { buildApp } from '../../src/app';
 import { openMemoryDb } from '../../src/db/connection';
 import { migrate } from '../../src/db/migrate';
 import { parseEnv } from '../../src/env';
+import { type FakeOllama, startFakeOllama } from '../helpers/fakeOllama';
 
-let fake: Server | undefined;
-afterEach(() => fake?.close());
+let fake: FakeOllama | undefined;
+afterEach(async () => {
+  await fake?.close();
+  fake = undefined;
+});
 
-/** Starts a stand-in for Ollama's /api/version and /api/tags. Returns its URL. */
-async function fakeOllama(installed: string[]): Promise<string> {
-  fake = createServer((req, res) => {
-    res.setHeader('content-type', 'application/json');
-    if (req.url === '/api/version') return res.end(JSON.stringify({ version: '0.40.13' }));
-    if (req.url === '/api/tags') return res.end(JSON.stringify({ models: installed.map((name) => ({ name })) }));
-    res.statusCode = 404;
-    res.end('{}');
-  });
-  await new Promise<void>((resolve) => fake!.listen(0, '127.0.0.1', resolve));
-  return `http://127.0.0.1:${(fake.address() as AddressInfo).port}`;
+async function fakeOllama(models: string[]) {
+  fake = await startFakeOllama({ models });
+  return fake.url;
 }
 
 async function health(ollamaUrl: string) {
@@ -50,9 +44,7 @@ describe('GET /api/health', () => {
   });
 
   it('is down with a start hint when Ollama is not running', async () => {
-    const url = await fakeOllama([]);
-    await new Promise((resolve) => fake!.close(resolve)); // free the port: nothing listens there now
-    const { res, body } = await health(url);
+    const { res, body } = await health('http://127.0.0.1:9'); // nothing listens on port 9
     expect(res.statusCode).toBe(200);
     expect(body.ollama.status).toBe('down');
     expect(body.ollama.hint).toContain('make deps-up');

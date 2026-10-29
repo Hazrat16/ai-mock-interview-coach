@@ -14,6 +14,7 @@ It follows the same pattern as the user's other dockerized projects (e.g. `ai-sq
 | D5 | Docker Compose runs the AI services. The app (Fastify + Vite/React) runs on the host via npm. The Makefile is the interface. |
 | D6 | Ollama image pinned to **`ollama/ollama:0.40.13`** (latest stable on 2026-10-29). Never `latest`. |
 | D7 | Host Node 26 (already installed); its built-in `node:sqlite` replaces better-sqlite3 (no native module). TypeScript **6.0.x**, because typescript-eslint does not yet support TypeScript 7. |
+| D8 | Models from M3 measurements ([decision](../benchmarks/2026-10-29-model-decision.md)): **granite4:3b** for the live interview, **qwen3.5:4b** for evaluation, 8 CPU threads, one model in memory at a time. |
 
 ## Services
 | Service | Image | Host port | Added in |

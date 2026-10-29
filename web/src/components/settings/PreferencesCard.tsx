@@ -83,12 +83,16 @@ export function PreferencesCard({ availableModels }: { availableModels: string[]
     setDraft({ ...draft, [key]: value });
     setMessage(undefined);
   };
-  const changed = JSON.stringify(draft) !== JSON.stringify(saved);
+  // Only fields the user changed are saved, so untouched ones keep following the defaults in .env.
+  const patch = Object.fromEntries(
+    Object.entries(draft).filter(([key, value]) => saved[key as keyof Settings] !== value),
+  ) as Partial<Settings>;
+  const changed = Object.keys(patch).length > 0;
   const valid = settingsSchema.safeParse(draft).success;
 
   const save = async () => {
     try {
-      const s = await sendJson('PUT', '/api/settings', draft, settingsSchema);
+      const s = await sendJson('PUT', '/api/settings', patch, settingsSchema);
       setSaved(s);
       setDraft(s);
       setMessage({ kind: 'ok', text: 'Saved.' });

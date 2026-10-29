@@ -2,7 +2,7 @@
 
 A personal, audio-only mock interview app that runs entirely on this computer. It uses Ollama for the LLM, and will add whisper.cpp for speech-to-text and Piper for text-to-speech. There are no cloud services and no API keys.
 
-Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M2 (database and settings)**.
+Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M3 (LLM integration and benchmark)**.
 
 ## How it runs
 
@@ -19,12 +19,12 @@ make doctor     # check the machine
 make dev        # open http://127.0.0.1:5173  (Ctrl+C stops all)
 ```
 
-Other commands: `make start` (production build on http://127.0.0.1:4317), `make check` (lint, type-check, tests), `make llm-smoke` (LLM speed and JSON test), `make help`.
+Other commands: `make start` (production build on http://127.0.0.1:4317), `make check` (lint, type-check, tests), `make llm-smoke` (quick LLM check), `make bench` (LLM benchmark, ~25 min), `make help`.
 
 ## Where things live
 
-| What                        | Where                                                    |
-| --------------------------- | -------------------------------------------------------- |
-| AI models                   | `MODELS_DIR` (default `/media/hazrat/Hazrat8/ai-models`) |
-| Database, backups           | `DATA_DIR` (default `~/.local/share/ai-interview-coach`) |
-| Benchmarks                  | `docs/benchmarks/`                                       |
+| What              | Where                                                    |
+| ----------------- | -------------------------------------------------------- |
+| AI models         | `MODELS_DIR` (default `/media/hazrat/Hazrat8/ai-models`) |
+| Database, backups | `DATA_DIR` (default `~/.local/share/ai-interview-coach`) |
+| Benchmarks        | `docs/benchmarks/`                                       |

@@ -2,6 +2,7 @@ import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { type Health, healthSchema } from '@shared/schemas/health';
 import { DataCard } from '@/components/settings/DataCard';
+import { ModelTestButton } from '@/components/settings/ModelTestButton';
 import { PreferencesCard } from '@/components/settings/PreferencesCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -82,13 +83,16 @@ export function Settings() {
               <CardDescription>{health.ollama.detail}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <ul className="space-y-1 text-sm">
+              <ul className="space-y-3 text-sm">
                 {health.ollama.models.map((m) => (
-                  <li key={m.name} className="flex justify-between">
-                    <span className="font-mono">{m.name}</span>
-                    <span className={m.installed ? 'text-muted-foreground' : 'text-destructive'}>
-                      {m.installed ? 'installed' : 'missing'}
-                    </span>
+                  <li key={m.name} className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="font-mono">{m.name}</span>
+                      <span className={m.installed ? 'text-muted-foreground' : 'text-destructive'}>
+                        {m.installed ? 'installed' : 'missing'}
+                      </span>
+                    </div>
+                    {m.installed && <ModelTestButton model={m.name} />}
                   </li>
                 ))}
               </ul>

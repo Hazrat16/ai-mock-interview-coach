@@ -5,7 +5,7 @@ import { type Db, transaction } from '../connection';
 export function defaultSettings(env: Env): Settings {
   return {
     interviewerModel: env.INTERVIEWER_MODEL,
-    evaluatorModel: env.INTERVIEWER_MODEL,
+    evaluatorModel: env.EVALUATOR_MODEL,
     showTranscript: true,
     endOfAnswerSilenceSec: 4,
     defaultThinkingTimeSec: 10,

@@ -33,7 +33,7 @@ const put = (body: unknown) => app.inject({ method: 'PUT', url: '/api/settings',
 describe('settings API', () => {
   it('returns defaults on a fresh database', async () => {
     expect(await getSettings()).toEqual({
-      interviewerModel: 'qwen3.5:4b',
+      interviewerModel: 'granite4:3b',
       evaluatorModel: 'qwen3.5:4b',
       showTranscript: true,
       endOfAnswerSilenceSec: 4,

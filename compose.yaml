@@ -14,6 +14,8 @@ services:
       OLLAMA_NO_CLOUD: '1'
       OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
       OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-8192}
+      # Interviewer and evaluator together (~6.4 GB) would crowd the 7 GB limit; swap instead (5-9 s).
+      OLLAMA_MAX_LOADED_MODELS: '1'
     volumes:
       - type: bind
         source: ${MODELS_DIR:?MODELS_DIR is not set; run make setup}/ollama

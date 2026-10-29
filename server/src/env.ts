@@ -8,8 +8,11 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().min(1024).max(65535).default(4317),
   OLLAMA_URL: z.url().default('http://127.0.0.1:11435'),
   DATA_DIR: z.string().min(1),
-  INTERVIEWER_MODEL: z.string().min(1).default('qwen3.5:4b'),
+  INTERVIEWER_MODEL: z.string().min(1).default('granite4:3b'),
+  EVALUATOR_MODEL: z.string().min(1).default('qwen3.5:4b'),
   FALLBACK_MODEL: z.string().min(1).default('granite4:3b'),
+  /** CPU threads for the LLM. Unset = Ollama's default. Tune with `make bench`. */
+  LLM_NUM_THREAD: z.coerce.number().int().min(1).max(64).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
