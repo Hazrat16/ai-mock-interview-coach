@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates .env (if missing) and the model/data folders. Never overwrites or deletes anything.
+# Creates .env (if missing) and the model/data folders (called by make setup). Never overwrites or deletes anything.
 set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 

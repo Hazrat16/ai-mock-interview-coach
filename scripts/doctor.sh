@@ -24,20 +24,27 @@ else
   docker compose version >/dev/null 2>&1 && pass "docker compose $(docker compose version --short)" || fail "docker compose plugin missing"
 fi
 
+echo "Node"
+if command -v node >/dev/null; then
+  major=$(node -p 'process.versions.node.split(".")[0]')
+  (( major >= 24 )) && pass "node $(node -v), npm $(npm -v)" || fail "node $(node -v) is too old; need 24 or newer (nvm install 24)"
+  [[ -d node_modules ]] && pass "npm packages installed" || warn "npm packages not installed: run make setup"
+else fail "node not installed (use nvm)"; fi
+
 echo "Configuration"
 if [[ ! -f .env ]]; then
-  fail ".env missing: run make init"
+  fail ".env missing: run make setup"
 else
   load_env
   if [[ "$(mountpoint_of "$MODELS_DIR")" == "/" ]]; then fail "MODELS_DIR $MODELS_DIR is on the root disk (NTFS drive not mounted?)"
   elif [[ -d "$MODELS_DIR/ollama" ]]; then
     pass "MODELS_DIR $MODELS_DIR ($(fstype_of "$MODELS_DIR"), $(df -BG --output=avail "$MODELS_DIR" | tail -1 | xargs) free)"
-  else fail "MODELS_DIR/ollama missing: run make init"; fi
+  else fail "MODELS_DIR/ollama missing: run make setup"; fi
 
   fs=$(fstype_of "$DATA_DIR")
   case "$fs" in
     fuse*|ntfs*|vfat|exfat) fail "DATA_DIR $DATA_DIR is on $fs; SQLite needs ext4" ;;
-    *) [[ -d "$DATA_DIR" ]] && pass "DATA_DIR $DATA_DIR ($fs)" || fail "DATA_DIR missing: run make init" ;;
+    *) [[ -d "$DATA_DIR" ]] && pass "DATA_DIR $DATA_DIR ($fs)" || fail "DATA_DIR missing: run make setup" ;;
   esac
 
   if docker compose config -q 2>/dev/null; then pass "compose.yaml is valid"; else fail "compose.yaml invalid: run docker compose config"; fi
@@ -45,7 +52,7 @@ else
   if docker image inspect "ollama/ollama:$OLLAMA_IMAGE_TAG" >/dev/null 2>&1; then pass "image ollama/ollama:$OLLAMA_IMAGE_TAG present"
   else warn "image ollama/ollama:$OLLAMA_IMAGE_TAG not downloaded yet: run make setup"; fi
 
-  for m in $PULL_MODELS; do
+  for m in $INTERVIEWER_MODEL $FALLBACK_MODEL; do
     name=${m%%:*}; tag=${m#*:}
     if [[ -f "$MODELS_DIR/ollama/manifests/registry.ollama.ai/library/$name/$tag" ]]; then pass "model $m downloaded"
     else warn "model $m not downloaded yet: run make models"; fi

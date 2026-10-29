@@ -12,7 +12,7 @@ info() { printf '  ....  %s\n' "$*"; }
 
 load_env() {
   if [[ ! -f .env ]]; then
-    echo ".env not found. Run: make init" >&2
+    echo ".env not found. Run: make setup" >&2
     exit 1
   fi
   set -a
