@@ -1,0 +1,15 @@
+# Locked from a working build (pip freeze). Upgrade: edit the piper-tts pin, rebuild, re-freeze.
+blinker==1.9.0
+click==8.5.0
+Flask==3.1.3
+flatbuffers==25.12.19
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
+numpy==2.5.4
+onnxruntime==1.31.1
+packaging==26.3
+pathvalidate==3.3.1
+piper-tts[http]==1.8.0
+protobuf==7.36.2
+Werkzeug==3.1.9

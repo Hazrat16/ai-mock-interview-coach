@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { z } from 'zod';
+import { DEFAULT_VOICE, VOICE_IDS } from '@shared/voices';
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -11,6 +12,9 @@ const envSchema = z.object({
   INTERVIEWER_MODEL: z.string().min(1).default('granite4:3b'),
   EVALUATOR_MODEL: z.string().min(1).default('qwen3.5:4b'),
   FALLBACK_MODEL: z.string().min(1).default('granite4:3b'),
+  PIPER_URL: z.url().default('http://127.0.0.1:5150'),
+  /** The voice the Piper container loads at start; Settings can pick another installed voice. */
+  PIPER_DEFAULT_VOICE: z.enum(VOICE_IDS).default(DEFAULT_VOICE),
   /** CPU threads for the LLM. Unset = Ollama's default. Tune with `make bench`. */
   LLM_NUM_THREAD: z.coerce.number().int().min(1).max(64).optional(),
 });

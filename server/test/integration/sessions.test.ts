@@ -29,7 +29,7 @@ async function setup(chat: FakeReply[] | ((body: Record<string, unknown>) => Fak
   await migrate(db);
   seedQuestions(db);
   const env = parseEnv({ NODE_ENV: 'test', DATA_DIR: '/tmp/coach', OLLAMA_URL: ollamaUrl ?? fake.url });
-  app = await buildApp(env, db, '0.0.0-test', { decisionTimeoutMs: 2000 });
+  app = await buildApp(env, db, '0.0.0-test', { engine: { decisionTimeoutMs: 2000 } });
 }
 
 const decision = (d: { action: 'follow_up' | 'next'; follow_up?: string | null }) =>

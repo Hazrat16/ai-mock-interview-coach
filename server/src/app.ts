@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
@@ -7,12 +8,17 @@ import { defaultSettings, getSettings } from './db/repos/settings';
 import type { Env } from './env';
 import { HttpError } from './errors';
 import { type EngineDeps, InterviewEngine } from './interview/engine';
+import { FIXED_PHRASES } from './interview/phrases';
 import { OllamaClient, OllamaError, OllamaUnavailableError } from './llm/ollamaClient';
 import { StructuredOutputError } from './llm/structured';
 import { healthRoutes } from './routes/health';
 import { llmRoutes } from './routes/llm';
+import { speechRoutes } from './routes/speech';
 import { sessionRoutes } from './routes/sessions';
 import { settingsRoutes } from './routes/settings';
+import { PhraseCache } from './speech/phraseCache';
+import { TextToSpeech } from './speech/tts';
+import { PiperClient, TtsError, TtsUnavailableError } from './speech/ttsClient';
 
 const WEB_DIST = fileURLToPath(new URL('../../dist/web', import.meta.url));
 
@@ -30,8 +36,14 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
-/** `engine` overrides interview engine options (tests use short timeouts). */
-export async function buildApp(env: Env, db: Db, version: string, engine: Partial<EngineDeps> = {}) {
+export type AppOptions = {
+  /** Interview engine overrides (tests use short timeouts). */
+  engine?: Partial<EngineDeps>;
+  /** Waits before retrying an unreachable Piper (tests use none). */
+  ttsRetryDelaysMs?: number[];
+};
+
+export async function buildApp(env: Env, db: Db, version: string, options: AppOptions = {}) {
   // 'warn' keeps per-request lines (logged at info) out of the terminal.
   const app = Fastify({ logger: env.NODE_ENV === 'test' ? false : { level: 'warn' } });
 
@@ -47,6 +59,9 @@ export async function buildApp(env: Env, db: Db, version: string, engine: Partia
     if (err instanceof OllamaError) {
       return reply.code(err instanceof OllamaUnavailableError ? 503 : 502).send({ error: err.message, hint: err.hint });
     }
+    if (err instanceof TtsError) {
+      return reply.code(err instanceof TtsUnavailableError ? 503 : 502).send({ error: err.message, hint: err.hint });
+    }
     if (err instanceof StructuredOutputError) {
       app.log.warn({ raw: err.raw.slice(0, 500) }, err.message);
       return reply.code(502).send({ error: 'The model gave an invalid answer twice. Try again.' });
@@ -55,21 +70,31 @@ export async function buildApp(env: Env, db: Db, version: string, engine: Partia
     return reply.code(500).send({ error: 'Internal error' });
   });
 
+  const defaults = defaultSettings(env);
+  const settings = () => getSettings(db, defaults);
   const llm = new OllamaClient(env.OLLAMA_URL);
-  healthRoutes(app, env, db, version);
+  const piper = new PiperClient(env.PIPER_URL, options.ttsRetryDelaysMs);
+  const tts = new TextToSpeech(piper, new PhraseCache(join(env.DATA_DIR, 'tts-cache')), settings);
+  healthRoutes(app, env, db, version, piper);
   settingsRoutes(app, env, db);
   llmRoutes(app, env, llm);
-  const defaults = defaultSettings(env);
+  speechRoutes(app, tts, piper, settings);
+  if (env.NODE_ENV !== 'test') {
+    // Fixed phrases get cached audio right away, so the first interview never waits for them.
+    app.addHook('onListen', async () => {
+      void tts.prewarm(FIXED_PHRASES, (msg) => console.log(msg)); // in the background; listen does not wait
+    });
+  }
   sessionRoutes(
     app,
     new InterviewEngine({
       db,
       llm,
-      settings: () => getSettings(db, defaults),
+      settings,
       numThread: env.LLM_NUM_THREAD,
       warmUp: env.NODE_ENV !== 'test',
       log: (msg) => app.log.info(msg),
-      ...engine,
+      ...options.engine,
     }),
   );
 

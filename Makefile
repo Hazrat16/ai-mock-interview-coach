@@ -1,20 +1,27 @@
 SHELL := /bin/bash
 COMPOSE := docker compose
+# The Piper container runs as your user, so it can read the voice files on the drive.
+export HOST_UID := $(shell id -u)
 .DEFAULT_GOAL := help
 
-.PHONY: help setup models dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench
+.PHONY: help setup models voices dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench bench-tts
 
 help: ## List commands
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  make %-10s %s\n",$$1,$$2}'
 
-setup: ## Create .env and folders, install npm packages, pull images (safe to re-run)
+setup: ## Create .env and folders, install npm packages, pull/build images (safe to re-run)
 	@bash scripts/init.sh
 	npm install
-	$(COMPOSE) pull
+	$(COMPOSE) pull --ignore-buildable
+	$(COMPOSE) build
 
-models: deps-up ## Download the AI models (internet, one-time)
+models: ## Download the AI models (internet, one-time)
+	$(COMPOSE) up -d --wait ollama
 	@source scripts/lib.sh && load_env && for m in $$(printf '%s\n' $$INTERVIEWER_MODEL $$EVALUATOR_MODEL $$FALLBACK_MODEL | sort -u); do \
 	  $(COMPOSE) exec ollama ollama pull "$$m" || exit 1; done
+
+voices: ## Download the Piper voices (internet, one-time, ~300 MB; licenses in shared/voices.ts)
+	npx tsx scripts/download-voices.ts
 
 dev: deps-up ## Start everything for development; Ctrl+C stops it all
 	@trap '$(COMPOSE) down' EXIT; npm run dev
@@ -55,3 +62,6 @@ llm-smoke: ## LLM check: JSON output, no thinking text, timings
 
 bench: deps-up ## LLM benchmark on realistic prompts (~20-30 min; ARGS="--quick" ~8 min)
 	npx tsx scripts/bench-llm.ts $(ARGS)
+
+bench-tts: deps-up ## Text-to-speech speed per voice (first-sentence latency, real-time factor)
+	npx tsx scripts/bench-tts.ts $(ARGS)

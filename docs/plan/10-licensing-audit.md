@@ -21,7 +21,8 @@ I am not a lawyer; this is a practical audit, not legal advice.
 | Whisper model weights | MIT | K | No | No | No | No |
 | Piper engine (`piper-tts`, OHF-Voice/piper1-gpl) | GPL-3.0 | V | No | No | No | No. Voice download script contacts Hugging Face once |
 | Piper voice `en_US-lessac-*` | Dataset licensed **non-commercial research only, no redistribution** | V | – | – | – | **Not used** |
-| Piper voice (chosen, e.g. `en_US-ljspeech`) | Per voice MODEL_CARD; LJ Speech dataset public domain | K → checked in M5 | No | No | No | No |
+| Piper voices used: `en_US-ljspeech-medium` (default), `-high`, `en_US-joe-medium`, `en_US-norman-medium` | MODEL_CARD datasets: LJ Speech public domain, OHF voice-datasets CC0, LibriVox public domain. Voice repo (rhasspy/piper-voices) MIT | **V (M5, [record](../benchmarks/2026-10-29-tts.md))** | No | No | No | No (download once at a pinned commit, SHA-256 checked) |
+| Piper voices rejected | `ryan` CC BY-NC-SA 4.0, `hfc_male`/`hfc_female` CC BY-NC-SA 4.0, `northern_english_male` CC BY-SA 4.0 (share-alike) | V (M5) | – | – | – | **Not used** |
 | Kokoro-82M (later option) | Apache-2.0 weights | V | No | No | No | No |
 | Silero VAD model | MIT | K | No | No | No | No |
 | `@ricky0123/vad-web` | ISC | K (repo page did not show the name) | No | No | No | **Examples load from jsDelivr CDN.** We self-host all assets (V: options exist) |

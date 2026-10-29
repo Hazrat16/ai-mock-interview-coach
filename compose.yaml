@@ -29,3 +29,38 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+
+  piper:
+    build:
+      context: docker
+      dockerfile: piper.Dockerfile
+      args:
+        UID: ${HOST_UID:-1000}
+    image: ai-interview-coach-piper:1.8.0
+    # Restarts by itself if the server crashes (or is killed); `make deps-down` still stops it.
+    restart: on-failure:5
+    init: true # forwards signals to the server, so it stops in under a second
+    ports:
+      - '127.0.0.1:${PIPER_PORT:-5150}:5000' # this computer only
+    environment:
+      PIPER_VOICE: ${PIPER_DEFAULT_VOICE:-en_US-ljspeech-medium}
+    volumes:
+      - type: bind
+        source: ${MODELS_DIR:?MODELS_DIR is not set; run make setup}/piper
+        target: /voices
+        read_only: true
+        bind:
+          create_host_path: false
+    mem_limit: ${PIPER_MEM_LIMIT:-2g}
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/info', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s

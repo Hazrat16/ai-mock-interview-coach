@@ -9,6 +9,9 @@ export function defaultSettings(env: Env): Settings {
     showTranscript: true,
     endOfAnswerSilenceSec: 4,
     defaultThinkingTimeSec: 10,
+    speakInterviewer: true,
+    ttsVoice: env.PIPER_DEFAULT_VOICE,
+    speechRate: 1,
   };
 }
 

@@ -162,7 +162,8 @@ export function NewInterview() {
       <div>
         <h1 className="text-2xl font-semibold">New interview</h1>
         <p className="text-sm text-muted-foreground">
-          Questions come from the local question bank. In this version you answer by typing; voice arrives in M7.
+          Questions come from the local question bank. The interviewer reads each question aloud (turn this off in
+          Settings). You answer by typing; spoken answers arrive in M7.
         </p>
       </div>
 

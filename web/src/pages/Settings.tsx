@@ -4,6 +4,7 @@ import { type Health, healthSchema } from '@shared/schemas/health';
 import { DataCard } from '@/components/settings/DataCard';
 import { ModelTestButton } from '@/components/settings/ModelTestButton';
 import { PreferencesCard } from '@/components/settings/PreferencesCard';
+import { VoiceCard } from '@/components/settings/VoiceCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -103,6 +104,20 @@ export function Settings() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between gap-2">
+                Text-to-speech (Piper) <StatusBadge status={health.tts.status} />
+              </CardTitle>
+              <CardDescription>{health.tts.detail}</CardDescription>
+            </CardHeader>
+            {health.tts.hint && (
+              <CardContent>
+                <Hint text={health.tts.hint} />
+              </CardContent>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between gap-2">
                 Memory <StatusBadge status={health.memory.low ? 'degraded' : 'ok'} />
               </CardTitle>
               <CardDescription>
@@ -121,6 +136,7 @@ export function Settings() {
       )}
 
       <PreferencesCard availableModels={health?.ollama.available ?? []} />
+      <VoiceCard />
       <DataCard />
     </div>
   );

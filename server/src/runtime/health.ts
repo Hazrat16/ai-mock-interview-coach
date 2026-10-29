@@ -1,6 +1,7 @@
 import os from 'node:os';
 import type { Health } from '@shared/schemas/health';
 import type { Env } from '../env';
+import type { PiperClient } from '../speech/ttsClient';
 
 const LOW_MEMORY_GB = 6;
 const gb = (bytes: number) => Math.round((bytes / 1024 ** 3) * 10) / 10;
@@ -41,12 +42,31 @@ export async function checkOllama(env: Env, wanted: string[]): Promise<Health['o
     : { status: 'ok', version, models, available, detail: `Ollama ${version}` };
 }
 
-export async function getHealth(env: Env, version: string, wantedModels: string[]): Promise<Health> {
+/** Piper is up and has the selected voice on disk. */
+export async function checkTts(piper: PiperClient, voice: string): Promise<Health['tts']> {
+  let installed: string[];
+  try {
+    installed = await piper.installedVoices();
+  } catch {
+    return { status: 'down', voice, detail: 'Piper is not running', hint: 'Start it with: make deps-up' };
+  }
+  return installed.includes(voice)
+    ? { status: 'ok', voice, detail: `Piper, voice ${voice}` }
+    : { status: 'degraded', voice, detail: `Voice ${voice} is not downloaded`, hint: 'Download with: make voices' };
+}
+
+export async function getHealth(
+  env: Env,
+  version: string,
+  wantedModels: string[],
+  tts: () => Promise<Health['tts']>,
+): Promise<Health> {
   // os.freemem() reports MemAvailable on Linux, which counts reclaimable cache.
   const availableGb = gb(os.freemem());
   return {
     app: { status: 'ok', version },
     ollama: await checkOllama(env, wantedModels),
+    tts: await tts(),
     memory: { availableGb, totalGb: gb(os.totalmem()), low: availableGb < LOW_MEMORY_GB },
   };
 }

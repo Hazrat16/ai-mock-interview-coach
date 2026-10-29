@@ -1,5 +1,5 @@
 // Fixed interviewer phrases. Chosen in code rather than by the model: they are instant, always
-// neutral (never praise or criticize), and in M5 they can be pre-synthesized to audio.
+// neutral (never praise or criticize), and pre-synthesized to audio at startup (FIXED_PHRASES).
 import type { InterviewConfig } from '@shared/schemas/interview';
 
 const TYPE_NAMES: Record<InterviewConfig['interviewType'], string> = {
@@ -11,7 +11,7 @@ const TYPE_NAMES: Record<InterviewConfig['interviewType'], string> = {
 };
 
 export const ACKS = ['Thank you.', 'Okay, thanks.', 'Got it, thank you.', 'Thanks for that.', 'All right.'];
-const LEADS = ['Next question.', "Let's move on.", 'Here is the next one.', 'Moving on.'];
+export const LEADS = ['Next question.', "Let's move on.", 'Here is the next one.', 'Moving on.'];
 
 /** Rotates through the list so consecutive turns sound different but runs stay reproducible. */
 export const pick = (list: string[], n: number) => list[n % list.length]!;
@@ -27,9 +27,20 @@ export function intro(config: InterviewConfig, total: number) {
 }
 
 export function lead(questionNumber: number, total: number) {
-  if (questionNumber === total && total > 1) return 'And the last question.';
+  if (questionNumber === total && total > 1) return LAST_LEAD;
   return pick(LEADS, questionNumber);
 }
 
 export const CLOSING =
   "That's the end of the interview. Thank you for your time. You can review your answers on the next screen.";
+
+export const LAST_LEAD = 'And the last question.';
+
+/** Every fixed sentence the interviewer says, for the text-to-speech cache. */
+export const FIXED_PHRASES = [
+  ...ACKS,
+  ...LEADS,
+  LAST_LEAD,
+  "That's the end of the interview.",
+  'Thank you for your time.',
+];

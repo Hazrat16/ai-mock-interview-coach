@@ -18,7 +18,12 @@ async function fakeOllama(models: string[]) {
 }
 
 async function health(ollamaUrl: string) {
-  const env = parseEnv({ NODE_ENV: 'test', DATA_DIR: '/tmp/coach', OLLAMA_URL: ollamaUrl });
+  const env = parseEnv({
+    NODE_ENV: 'test',
+    DATA_DIR: '/tmp/coach',
+    OLLAMA_URL: ollamaUrl,
+    PIPER_URL: 'http://127.0.0.1:9',
+  });
   const db = openMemoryDb();
   await migrate(db);
   const app = await buildApp(env, db, '0.0.0-test');

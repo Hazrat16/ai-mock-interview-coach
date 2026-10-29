@@ -15,6 +15,7 @@ export const healthSchema = z.object({
     /** Every model downloaded in Ollama, for the model picker. */
     available: z.array(z.string()),
   }),
+  tts: componentStatusSchema.extend({ voice: z.string() }),
   memory: z.object({ availableGb: z.number(), totalGb: z.number(), low: z.boolean() }),
 });
 

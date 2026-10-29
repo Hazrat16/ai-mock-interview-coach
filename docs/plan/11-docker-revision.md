@@ -20,7 +20,7 @@ It follows the same pattern as the user's other dockerized projects (e.g. `ai-sq
 | Service | Image | Host port | Added in |
 |---------|-------|-----------|----------|
 | `ollama` | `ollama/ollama:0.40.13` | `127.0.0.1:11435` (11434 is used by other projects) | M0 |
-| `piper` | built from `docker/piper.Dockerfile` | `127.0.0.1:` port chosen in M5 | M5 |
+| `piper` | built from `docker/piper.Dockerfile` (piper-tts 1.8.0, locked deps) | `127.0.0.1:5150` | M5 |
 | `whisper` | built from `docker/whisper.Dockerfile` (pinned whisper.cpp tag) | `127.0.0.1:` port chosen in M6 | M6 |
 
 The app listens on `127.0.0.1:4317`; in dev, Vite serves the UI on `127.0.0.1:5173` and proxies `/api`.
@@ -36,5 +36,5 @@ Containers have normal Docker networking, so "no internet" is not enforced by Do
 - **04 §2 start/stop and `runtime/supervisor.ts`:** replaced by Compose (`make deps-up` / `make deps-down`) plus the `make dev` / `make start` trap that stops containers on exit. The app keeps `runtime/health.ts`.
 - **05:** adds `compose.yaml`, `Makefile`, and later `docker/*.Dockerfile`. `tools/` (host builds) and `scripts/coach` are not needed.
 - **07 M0:** `make setup` → `make models` → `make llm-smoke`. No host install of Ollama, cmake, or Python.
-- **09:** installation is `make setup && make models`, daily use is `make dev` or `make start`.
+- **09:** installation is `make setup && make models && make voices` (voices from M5), daily use is `make dev` or `make start`.
 - **10:** add Docker Engine and Compose (Apache-2.0, no account needed for public images), `cn` (shadcn's class-name helper, MIT), and the Geist font via `@fontsource-variable/geist` (SIL OFL 1.1, self-hosted).

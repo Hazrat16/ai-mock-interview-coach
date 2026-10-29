@@ -38,6 +38,9 @@ describe('settings API', () => {
       showTranscript: true,
       endOfAnswerSilenceSec: 4,
       defaultThinkingTimeSec: 10,
+      speakInterviewer: true,
+      ttsVoice: 'en_US-ljspeech-medium',
+      speechRate: 1,
     });
   });
 

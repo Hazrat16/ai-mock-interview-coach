@@ -58,10 +58,20 @@ else
     else warn "model $m not downloaded yet: run make models"; fi
   done
 
-  if [[ -n "$(docker compose ps -q --status running ollama 2>/dev/null)" ]]; then
-    health=$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q ollama)")
-    [[ "$health" == healthy ]] && pass "ollama container running and healthy" || warn "ollama container is $health"
-  else info "ollama container not running (start with make up)"; fi
+  if docker image inspect ai-interview-coach-piper:1.8.0 >/dev/null 2>&1; then pass "image ai-interview-coach-piper:1.8.0 built"
+  else warn "Piper image not built yet: run make setup"; fi
+
+  voice=${PIPER_DEFAULT_VOICE:-en_US-ljspeech-medium}
+  if [[ -f "$MODELS_DIR/piper/$voice.onnx" && -f "$MODELS_DIR/piper/$voice.onnx.json" ]]; then
+    pass "Piper voices: $(ls "$MODELS_DIR/piper" | sed -n 's/\.onnx$//p' | xargs)"
+  else warn "Piper voice $voice not downloaded yet: run make voices"; fi
+
+  for svc in ollama piper; do
+    if [[ -n "$(docker compose ps -q --status running $svc 2>/dev/null)" ]]; then
+      health=$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q $svc)")
+      [[ "$health" == healthy ]] && pass "$svc container running and healthy" || warn "$svc container is $health"
+    else info "$svc container not running (start with make deps-up)"; fi
+  done
 fi
 
 echo "Audio (host)"
