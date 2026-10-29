@@ -1,0 +1,65 @@
+# AI Mock Interview Coach: local services.
+# Use the Makefile (`make help`) instead of calling docker compose directly.
+name: ai-interview-coach
+
+services:
+  # Local LLM. Attached only to the internal network, so it cannot reach the internet.
+  ollama:
+    image: ollama/ollama:${OLLAMA_IMAGE_TAG:-0.40.13}
+    restart: "no"
+    environment:
+      OLLAMA_MODELS: /models
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_NO_CLOUD: "1"
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-8192}
+    volumes:
+      - type: bind
+        source: ${MODELS_DIR:?MODELS_DIR is not set; run make init}/ollama
+        target: /models
+        bind:
+          create_host_path: false # fail instead of writing models to the root disk when the drive is unmounted
+    networks: [ai-internal]
+    mem_limit: ${OLLAMA_MEM_LIMIT:-7g}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  # One-off model downloader (make models). The only service with internet access.
+  ollama-pull:
+    image: ollama/ollama:${OLLAMA_IMAGE_TAG:-0.40.13}
+    profiles: [setup]
+    restart: "no"
+    environment:
+      OLLAMA_MODELS: /models
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_NO_CLOUD: "1"
+      PULL_MODELS: ${PULL_MODELS:?PULL_MODELS is not set; run make init}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve >/tmp/serve.log 2>&1 &
+        i=0
+        until ollama list >/dev/null 2>&1; do
+          i=$$((i+1)); if [ $$i -gt 30 ]; then cat /tmp/serve.log; exit 1; fi; sleep 1
+        done
+        for m in $$PULL_MODELS; do
+          echo ">> pulling $$m"
+          ollama pull "$$m" || exit 1
+        done
+        ollama list
+    volumes:
+      - type: bind
+        source: ${MODELS_DIR:?MODELS_DIR is not set; run make init}/ollama
+        target: /models
+        bind:
+          create_host_path: false
+    networks: [default]
+
+networks:
+  ai-internal:
+    internal: true # no route to the internet
+  default: {}
