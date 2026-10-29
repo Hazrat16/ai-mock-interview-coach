@@ -3,6 +3,8 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { healthSchema } from '@shared/schemas/health';
 import { buildApp } from '../../src/app';
+import { openMemoryDb } from '../../src/db/connection';
+import { migrate } from '../../src/db/migrate';
 import { parseEnv } from '../../src/env';
 
 let fake: Server | undefined;
@@ -23,9 +25,12 @@ async function fakeOllama(installed: string[]): Promise<string> {
 
 async function health(ollamaUrl: string) {
   const env = parseEnv({ NODE_ENV: 'test', DATA_DIR: '/tmp/coach', OLLAMA_URL: ollamaUrl });
-  const app = await buildApp(env, '0.0.0-test');
+  const db = openMemoryDb();
+  await migrate(db);
+  const app = await buildApp(env, db, '0.0.0-test');
   const res = await app.inject({ method: 'GET', url: '/api/health' });
   await app.close();
+  db.close();
   return { res, body: healthSchema.parse(res.json()) };
 }
 
@@ -34,6 +39,7 @@ describe('GET /api/health', () => {
     const { res, body } = await health(await fakeOllama(['qwen3.5:4b', 'granite4:3b']));
     expect(res.statusCode).toBe(200);
     expect(body.ollama).toMatchObject({ status: 'ok', version: '0.40.13' });
+    expect(body.ollama.available).toEqual(['granite4:3b', 'qwen3.5:4b']);
   });
 
   it('is degraded with a download hint when a model is missing', async () => {

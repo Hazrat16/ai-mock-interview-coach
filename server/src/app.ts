@@ -2,8 +2,10 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
+import type { Db } from './db/connection';
 import type { Env } from './env';
 import { healthRoutes } from './routes/health';
+import { settingsRoutes } from './routes/settings';
 
 const WEB_DIST = fileURLToPath(new URL('../../dist/web', import.meta.url));
 
@@ -21,7 +23,7 @@ const CSP = [
   "frame-ancestors 'none'",
 ].join('; ');
 
-export async function buildApp(env: Env, version: string) {
+export async function buildApp(env: Env, db: Db, version: string) {
   // 'warn' keeps per-request lines (logged at info) out of the terminal.
   const app = Fastify({ logger: env.NODE_ENV === 'test' ? false : { level: 'warn' } });
 
@@ -31,7 +33,8 @@ export async function buildApp(env: Env, version: string) {
     reply.header('referrer-policy', 'no-referrer');
   });
 
-  healthRoutes(app, env, version);
+  healthRoutes(app, env, db, version);
+  settingsRoutes(app, env, db);
 
   // Production: serve the built UI. In development Vite serves it and proxies /api here.
   if (env.NODE_ENV === 'production') {

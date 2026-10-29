@@ -1,8 +1,24 @@
 import type { z } from 'zod';
 
+async function parse<T>(res: Response, path: string, schema: z.ZodType<T>): Promise<T> {
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `Request to ${path} failed (HTTP ${res.status})`);
+  }
+  return schema.parse(await res.json());
+}
+
 /** GET a JSON API path and validate the response against a shared schema. */
 export async function getJson<T>(path: string, schema: z.ZodType<T>): Promise<T> {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`Request to ${path} failed (HTTP ${res.status})`);
-  return schema.parse(await res.json());
+  return parse(await fetch(path), path, schema);
+}
+
+/** Send JSON (POST/PUT) and validate the response. */
+export async function sendJson<T>(method: 'POST' | 'PUT', path: string, body: unknown, schema: z.ZodType<T>) {
+  const res = await fetch(path, {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+  });
+  return parse(res, path, schema);
 }

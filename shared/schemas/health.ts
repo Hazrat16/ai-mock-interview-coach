@@ -12,6 +12,8 @@ export const healthSchema = z.object({
   ollama: componentStatusSchema.extend({
     version: z.string().optional(),
     models: z.array(z.object({ name: z.string(), installed: z.boolean() })),
+    /** Every model downloaded in Ollama, for the model picker. */
+    available: z.array(z.string()),
   }),
   memory: z.object({ availableGb: z.number(), totalGb: z.number(), low: z.boolean() }),
 });

@@ -1,6 +1,8 @@
 import { RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { type Health, healthSchema } from '@shared/schemas/health';
+import { DataCard } from '@/components/settings/DataCard';
+import { PreferencesCard } from '@/components/settings/PreferencesCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -113,6 +115,9 @@ export function Settings() {
           <p className="text-xs text-muted-foreground">App version {health.app.version}</p>
         </div>
       )}
+
+      <PreferencesCard availableModels={health?.ollama.available ?? []} />
+      <DataCard />
     </div>
   );
 }

@@ -27,7 +27,7 @@ fi
 echo "Node"
 if command -v node >/dev/null; then
   major=$(node -p 'process.versions.node.split(".")[0]')
-  (( major >= 24 )) && pass "node $(node -v), npm $(npm -v)" || fail "node $(node -v) is too old; need 24 or newer (nvm install 24)"
+  (( major >= 26 )) && pass "node $(node -v), npm $(npm -v)" || fail "node $(node -v) is too old; need 26 or newer (nvm install 26)"
   [[ -d node_modules ]] && pass "npm packages installed" || warn "npm packages not installed: run make setup"
 else fail "node not installed (use nvm)"; fi
 
