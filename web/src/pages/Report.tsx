@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import { type SessionReport, sessionReportSchema } from '@shared/schemas/evaluation';
 import type { InterviewConfig } from '@shared/schemas/interview';
+import { ProvenanceBadge } from '@/components/ProvenanceBadge';
 import { EvaluationView, scoreClass, SHOW_SCORES } from '@/components/report/EvaluationView';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -180,6 +181,7 @@ export function Report() {
                     {t.kind === 'follow_up' && <span className="text-muted-foreground">Follow-up: </span>}
                     {t.text}
                   </p>
+                  {t.provenance && <ProvenanceBadge provenance={t.provenance} />}
                   {t.answer ? (
                     <p className="flex gap-2 whitespace-pre-wrap text-muted-foreground">
                       {t.answer.inputMethod === 'voice' ? (

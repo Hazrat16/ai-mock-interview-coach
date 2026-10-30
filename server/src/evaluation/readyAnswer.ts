@@ -42,6 +42,9 @@ Write the interview-ready answer to the main question: what a strong ${level} ${
     input.document?.kind === 'job_description'
       ? `The job description (summary; connect the answer to it):\n${input.document.summary}`
       : '',
+    input.document?.kind === 'company_notes'
+      ? `The candidate's notes about the company (summary; connect the answer to them where it fits):\n${input.document.summary}`
+      : '',
     `\nExchange:\n${transcript}`,
   ]
     .filter(Boolean)

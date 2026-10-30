@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { deliverySchema } from '../delivery';
+import { provenanceSchema } from './provenance';
 
 export const LEVELS = ['intern', 'junior', 'mid', 'senior', 'lead'] as const;
 export const INTERVIEW_TYPES = ['hr', 'behavioral', 'technical', 'coding', 'system_design'] as const;
@@ -32,6 +33,8 @@ export const createSessionRequestSchema = z.object({
   onShortfall: z.enum(['ask', 'generate', 'reduce']).default('ask'),
   /** A job description or resume: its questions are written from it by the local model (M13). */
   documentId: z.string().optional(),
+  /** A company (Companies page): its questions, yours first, then predictions (M14). */
+  company: z.string().trim().min(1).max(120).optional(),
 });
 
 export const createSessionResponseSchema = z.discriminatedUnion('status', [
@@ -48,6 +51,8 @@ export const turnViewSchema = z.object({
   /** 1-based number of the main question this turn belongs to. */
   questionNumber: z.number(),
   totalQuestions: z.number(),
+  /** Company questions only: yours (with source and date) or a generated prediction (R23). */
+  provenance: provenanceSchema.optional(),
 });
 
 export const answerRequestSchema = z.object({
@@ -98,6 +103,7 @@ export const sessionSummarySchema = z.object({
 });
 
 export type InterviewConfig = z.infer<typeof interviewConfigSchema>;
+export type InterviewType = z.infer<typeof interviewTypeSchema>;
 export type CreateSessionRequest = z.input<typeof createSessionRequestSchema>;
 export type CreateSessionResponse = z.infer<typeof createSessionResponseSchema>;
 export type TurnView = z.infer<typeof turnViewSchema>;

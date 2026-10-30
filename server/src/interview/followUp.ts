@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { DocumentContext } from '@shared/schemas/documents';
 import type { InterviewConfig } from '@shared/schemas/interview';
 import { type ChatMessage, OllamaError, type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
 import { StructuredOutputError, structuredChat } from '../llm/structured';
@@ -37,8 +38,14 @@ export type DecisionContext = {
   thread: { question: string; answer: string }[];
   answer: string;
   /** Resume or job-description interviews: the document's summary, so follow-ups can refer to it. */
-  document?: { kind: 'job_description' | 'resume'; summary: string };
+  document?: DocumentContext;
 };
+
+const CONTEXT_LABELS = {
+  resume: "The candidate's resume",
+  job_description: 'The job description',
+  company_notes: "The candidate's notes about the company",
+} as const;
 
 const MAX_ANSWER_CHARS = 2400; // ~600 tokens; keeps the prompt small for CPU inference
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)} [...]` : s);
@@ -51,10 +58,7 @@ export function buildMessages(ctx: DecisionContext): ChatMessage[] {
   if (config.customInstructions)
     lines.push(`Candidate's instructions for this interview: ${config.customInstructions}`);
   if (ctx.document) {
-    lines.push(
-      ctx.document.kind === 'resume' ? "The candidate's resume (summary):" : 'The job description (summary):',
-      ctx.document.summary,
-    );
+    lines.push(`${CONTEXT_LABELS[ctx.document.kind]} (summary):`, ctx.document.summary);
   }
   if (ctx.coveredTopics.length) {
     lines.push('Topics already covered:', ...ctx.coveredTopics.map((t, i) => `${i + 1}. ${t}`));

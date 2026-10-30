@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { DocumentContext } from '@shared/schemas/documents';
 import { DIFFICULTIES, type InterviewConfig } from '@shared/schemas/interview';
 import { type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
 import { structuredChat } from '../llm/structured';
@@ -70,6 +71,9 @@ const FOCUS = {
   job_description:
     "Each question tests one of the job's required skills or responsibilities, names it, and is set in the kind of work " +
     'this job involves. Cover different skills. based_on: the skill or responsibility.',
+  company_notes:
+    'Each question is one this company is likely to ask, given only what the notes say about its values, interview ' +
+    'process, work and what it looks for. Do not invent facts about the company. based_on: the point from the notes.',
   resume:
     "Each question asks about a specific project or role from the candidate's resume, by name: what they built and why, " +
     'decisions and trade-offs, problems they solved, results. Cover different projects. Expected points describe what a ' +
@@ -81,16 +85,23 @@ const STORY =
   'These are behavioral questions: each asks for a story from that project, role or kind of work: a challenge, a ' +
   'disagreement, a mistake, a deadline or a decision, what the candidate did, and the result. Not technical details.';
 
-/** Writes the questions of a job-description or resume interview from the document's summary (R21, R22). */
+/**
+ * Writes interview questions from a summary: of a job description or resume (R21, R22), or of your notes about a
+ * company (predictions, R23).
+ */
 export async function generateFromDocument(
   llm: OllamaClient,
   opts: { model: string; numThread?: number },
   config: InterviewConfig,
-  doc: { kind: 'job_description' | 'resume'; summary: string },
+  doc: DocumentContext,
   count: number,
 ): Promise<DocumentQuestion[]> {
   const difficulty = config.difficulty === 'adaptive' ? 'medium' : config.difficulty;
-  const what = doc.kind === 'resume' ? "The candidate's resume" : 'The job description';
+  const what = {
+    resume: "The candidate's resume",
+    job_description: 'The job description',
+    company_notes: "The candidate's notes about the company",
+  }[doc.kind];
   const prompt = [
     `Write ${count} distinct ${config.interviewType.replace('_', ' ')} interview questions for a ${config.level} ${config.jobTitle}.`,
     FOCUS[doc.kind],

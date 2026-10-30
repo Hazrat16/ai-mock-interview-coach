@@ -130,9 +130,11 @@ const fromRow = (r: Row): Question => ({
 /** Questions of this type that suit the job family (or any family) and the level. Any difficulty. */
 export function findCandidates(db: Db, f: { interviewType: string; jobFamily: string; level: Level }): Question[] {
   const rows = db
-    // source 'user': written from your resume or a job description, asked only in interviews based on it.
+    // Not 'user' (written from your resume or a job description) or 'company' (Companies page): those are asked
+    // only in interviews based on them.
     .prepare(
-      `SELECT * FROM questions WHERE interview_type = ? AND (job_family IS NULL OR job_family = ?) AND source != 'user'
+      `SELECT * FROM questions WHERE interview_type = ? AND (job_family IS NULL OR job_family = ?)
+         AND source IN ('seed', 'generated')
        ORDER BY id`,
     )
     .all(f.interviewType, f.jobFamily) as Row[];

@@ -10,6 +10,7 @@ import type {
 } from '@shared/schemas/interview';
 import type { Settings } from '@shared/schemas/settings';
 import { type Db, transaction } from '../db/connection';
+import { addCompanyQuestions, companyCandidates, companyNoteIds, questionProvenance } from '../db/repos/companies';
 import { getDocument, linkSessionDocument, sessionDocumentContext } from '../db/repos/documents';
 import { findCandidates, getQuestion, idsForTexts, insertQuestions, recentlyAskedIds } from '../db/repos/questions';
 import {
@@ -32,7 +33,7 @@ import type { OllamaClient } from '../llm/ollamaClient';
 import { isClarificationRequest, rephrase } from './clarify';
 import { chooseFollowUp, decide, warmUp } from './followUp';
 import { generateFromDocument, generateQuestions } from './generator';
-import { planQuestions } from './planner';
+import { planQuestions, seededRandom, shuffle } from './planner';
 import {
   ACKS,
   CLARIFY_REPEATED,
@@ -66,6 +67,7 @@ type CreateInput = {
   seed?: number;
   onShortfall: 'ask' | 'generate' | 'reduce';
   documentId?: string;
+  company?: string;
 };
 
 const OPEN: SessionStatus[] = ['planned', 'in_progress', 'paused'];
@@ -85,6 +87,7 @@ export class InterviewEngine {
 
   async create(input: CreateInput): Promise<CreateSessionResponse> {
     if (input.documentId) return this.createFromDocument(input.config, input.documentId);
+    if (input.company) return this.createForCompany({ ...input, company: input.company });
     const { config } = input;
     const seed = input.seed ?? randomInt(2 ** 31);
     const recentIds = recentlyAskedIds(this.db, this.deps.recentSessions ?? 3);
@@ -160,6 +163,86 @@ export class InterviewEngine {
     linkSessionDocument(this.db, sessionId, doc.id);
     if (this.deps.warmUp) void warmUp(this.deps.llm, s.interviewerModel, this.deps.numThread);
     return { status: 'created', sessionId, questionCount: questionIds.length, generated: questions.length };
+  }
+
+  /** A company interview: your questions first, then predictions; offers to predict more when there are too few. */
+  private async createForCompany(input: CreateInput & { company: string }): Promise<CreateSessionResponse> {
+    const { config, company } = input;
+    const seed = input.seed ?? randomInt(2 ** 31);
+    const pick = () => {
+      const random = seededRandom(seed);
+      const all = companyCandidates(this.db, company, config.interviewType).sort((a, b) =>
+        a.text.localeCompare(b.text),
+      );
+      const yours = shuffle(
+        all.filter((q) => q.verified),
+        random,
+      );
+      const predicted = shuffle(
+        all.filter((q) => !q.verified),
+        random,
+      );
+      return [...yours, ...predicted].slice(0, config.questionCount).map((q) => q.id);
+    };
+    let questionIds = pick();
+    let generated = 0;
+    if (questionIds.length < config.questionCount) {
+      if (input.onShortfall === 'ask') {
+        return { status: 'needs_decision', available: questionIds.length, requested: config.questionCount };
+      }
+      if (input.onShortfall === 'generate') {
+        generated = (await this.predictForCompany(company, config, config.questionCount - questionIds.length)).added;
+        questionIds = pick();
+      }
+      if (questionIds.length === 0) {
+        throw conflict(
+          `No ${config.interviewType.replace('_', ' ')} questions for ${company} yet. Add yours on the Companies page, or predict some from your notes.`,
+        );
+      }
+    }
+    const s = this.deps.settings();
+    const sessionId = insertSession(this.db, {
+      config,
+      plan: { seed, questionIds },
+      mode: 'company',
+      interviewerModel: s.interviewerModel,
+    });
+    for (const id of companyNoteIds(this.db, company)) linkSessionDocument(this.db, sessionId, id);
+    if (this.deps.warmUp) void warmUp(this.deps.llm, s.interviewerModel, this.deps.numThread);
+    return { status: 'created', sessionId, questionCount: questionIds.length, generated };
+  }
+
+  /**
+   * Predicts questions a company may ask, written only from your notes about it (never from what the model
+   * believes about the company). Always stored as predictions.
+   */
+  async predictForCompany(
+    company: string,
+    config: Pick<InterviewConfig, 'interviewType' | 'jobTitle' | 'level' | 'difficulty' | 'customInstructions'>,
+    count: number,
+  ) {
+    const notes = companyNoteIds(this.db, company).map((id) => getDocument(this.db, id)!.summary!);
+    if (!notes.length) {
+      throw conflict(`Add your notes about ${company} first: predictions are written only from your notes.`);
+    }
+    const questions = await generateFromDocument(
+      this.deps.llm,
+      { model: this.deps.settings().evaluatorModel, numThread: this.deps.numThread },
+      { ...config, jobFamily: 'other', questionCount: count, thinkingTimeSec: 0, followUpLimit: 0 },
+      { kind: 'company_notes', summary: notes.join('\n\n').slice(0, 2400) },
+      count,
+    );
+    return addCompanyQuestions(
+      this.db,
+      company,
+      config.interviewType,
+      questions.map((q) => ({
+        text: q.text,
+        difficulty: q.difficulty,
+        skills: q.skills,
+        expectedPoints: q.expected_points,
+      })),
+    );
   }
 
   private async generate(config: InterviewConfig, count: number): Promise<number> {
@@ -411,9 +494,16 @@ export class InterviewEngine {
           text: t.questionText,
           questionNumber,
           totalQuestions: session.plan.questionIds.length,
+          ...(t.kind === 'main' && t.questionId ? provenanceOf(this.db, t.questionId) : {}),
         };
       }
     }
     throw notFound('Question');
   }
+}
+
+/** A company question's label (R23), as a turn view field; nothing for other questions. */
+function provenanceOf(db: Db, questionId: string) {
+  const provenance = questionProvenance(db, questionId);
+  return provenance ? { provenance } : {};
 }

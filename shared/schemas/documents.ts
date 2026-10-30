@@ -40,5 +40,8 @@ export const documentResultSchema = z.object({
 });
 
 export type DocumentKind = z.infer<typeof documentKindSchema>;
+/** Documents an interview can be based on: also your notes about a company (Companies page). */
+export type ContextKind = DocumentKind | 'company_notes';
+export type DocumentContext = { kind: ContextKind; summary: string };
 export type DocumentView = z.infer<typeof documentViewSchema>;
 export type DocumentDetail = z.infer<typeof documentDetailSchema>;

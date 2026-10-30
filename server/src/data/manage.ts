@@ -9,6 +9,7 @@ import type { SessionReport } from '@shared/schemas/evaluation';
 import { backupDir, createBackup, listBackups } from '../db/backup';
 import { type Db, transaction } from '../db/connection';
 import { loadMigrations, migrate } from '../db/migrate';
+import { listCompanies } from '../db/repos/companies';
 import { getDocument, listDocuments } from '../db/repos/documents';
 import { resetRunningJobs } from '../db/repos/evaluations';
 import { HttpError } from '../errors';
@@ -39,6 +40,7 @@ export function exportAll(db: Db, appVersion: string) {
     exportedAt: new Date().toISOString(),
     settings: Object.fromEntries(settings.map((s) => [s.key, JSON.parse(s.value_json) as unknown])),
     documents: listDocuments(db).map((d) => getDocument(db, d.id)),
+    companies: listCompanies(db),
     interviews: ids.map(({ id }): SessionReport => buildReport(db, id)),
   };
 }
@@ -113,7 +115,10 @@ export function deleteTranscripts(db: Db) {
   });
 }
 
-/** Deletes every interview and everything learned from them. Settings and the question bank stay. */
+/**
+ * Deletes every interview, everything learned from them, your documents, and the questions written from them or
+ * added for companies. Settings and the question bank stay.
+ */
 export function deleteAll(db: Db) {
   transaction(db, () => {
     db.exec('DELETE FROM jobs');
@@ -123,5 +128,7 @@ export function deleteAll(db: Db) {
     db.exec('DELETE FROM learning_goals');
     db.exec('DELETE FROM exercises');
     db.exec('DELETE FROM documents');
+    // Questions written from your resume or job descriptions, and your company questions and predictions.
+    db.exec(`DELETE FROM questions WHERE source IN ('user', 'company')`);
   });
 }

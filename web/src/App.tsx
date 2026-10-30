@@ -1,6 +1,7 @@
-import { ChartLine, FileText, History, LayoutDashboard, Mic, Settings as SettingsIcon } from 'lucide-react';
+import { Building2, ChartLine, FileText, History, LayoutDashboard, Mic, Settings as SettingsIcon } from 'lucide-react';
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router';
 import { cn } from '@/lib/utils';
+import { Companies } from '@/pages/Companies';
 import { Dashboard } from '@/pages/Dashboard';
 import { Documents } from '@/pages/Documents';
 import { History as HistoryPage } from '@/pages/History';
@@ -16,6 +17,7 @@ const nav = [
   { to: '/history', label: 'History', Icon: History, page: <HistoryPage /> },
   { to: '/progress', label: 'Progress', Icon: ChartLine, page: <Progress /> },
   { to: '/documents', label: 'Documents', Icon: FileText, page: <Documents /> },
+  { to: '/companies', label: 'Companies', Icon: Building2, page: <Companies /> },
   { to: '/settings', label: 'Settings', Icon: SettingsIcon, page: <Settings /> },
 ];
 

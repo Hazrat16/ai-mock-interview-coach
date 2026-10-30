@@ -3,6 +3,7 @@
 import type { Delivery } from '@shared/delivery';
 import type { SessionReport } from '@shared/schemas/evaluation';
 import type { Db } from '../db/connection';
+import { questionProvenance } from '../db/repos/companies';
 import { evaluationsForSession } from '../db/repos/evaluations';
 import { getSession, getTurns } from '../db/repos/sessions';
 import { notFound } from '../errors';
@@ -28,6 +29,11 @@ export function buildReport(db: Db, sessionId: string): SessionReport {
     return row ? (JSON.parse(row.expected_points_json) as string[]) : [];
   };
 
+  const provenanceFor = (questionId: string) => {
+    const provenance = questionProvenance(db, questionId);
+    return provenance ? { provenance } : {};
+  };
+
   const items: SessionReport['items'] = [];
   let questionNumber = 0;
   for (const main of turns.filter((t) => t.kind === 'main')) {
@@ -43,6 +49,7 @@ export function buildReport(db: Db, sessionId: string): SessionReport {
           text: t.questionText,
           questionNumber,
           totalQuestions: session.plan.questionIds.length,
+          ...(t.kind === 'main' && t.questionId ? provenanceFor(t.questionId) : {}),
           answer: t.answer
             ? {
                 transcript: t.answer.transcript,

@@ -1,6 +1,7 @@
 // Scores one interview question (the main answer plus any follow-ups) against the rubric with the evaluator
 // model. The model scores criteria and writes feedback; the overall score and the evidence check are code.
 import { z } from 'zod';
+import type { DocumentContext } from '@shared/schemas/documents';
 import type { EvaluationResult } from '@shared/schemas/evaluation';
 import type { InterviewConfig } from '@shared/schemas/interview';
 import { type ChatMessage, type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
@@ -21,7 +22,7 @@ export type EvaluationInput = {
   /** From the question bank: what a good answer covers. */
   expectedPoints: string[];
   /** Resume or job-description interviews: the document's summary. */
-  document?: { kind: 'job_description' | 'resume'; summary: string };
+  document?: DocumentContext;
 };
 
 const MAX_TRANSCRIPT_CHARS = 6000; // ~1500 tokens; long answers are clipped to keep CPU time reasonable

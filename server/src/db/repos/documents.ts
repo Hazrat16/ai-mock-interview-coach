@@ -1,4 +1,4 @@
-import type { DocumentDetail, DocumentKind, DocumentView } from '@shared/schemas/documents';
+import type { DocumentContext, DocumentDetail, DocumentKind, DocumentView } from '@shared/schemas/documents';
 import type { Db } from '../connection';
 import { newId, nowIso } from '../ids';
 
@@ -64,13 +64,22 @@ export function linkSessionDocument(db: Db, sessionId: string, documentId: strin
   db.prepare('INSERT INTO session_documents (session_id, document_id) VALUES (?, ?)').run(sessionId, documentId);
 }
 
-/** The summary of the document an interview is based on, for the interviewer's and the answer writer's prompts. */
-export function sessionDocumentContext(db: Db, sessionId: string): { kind: DocumentKind; summary: string } | undefined {
-  const r = db
+const MAX_CONTEXT_CHARS = 2400; // ~600 tokens, even with several company notes
+
+/** The summary of what an interview is based on, for the interviewer's and the answer writer's prompts. */
+export function sessionDocumentContext(db: Db, sessionId: string): DocumentContext | undefined {
+  const rows = db
     .prepare(
       `SELECT d.kind, d.summary FROM session_documents sd JOIN documents d ON d.id = sd.document_id
-       WHERE sd.session_id = ? AND d.summary IS NOT NULL LIMIT 1`,
+       WHERE sd.session_id = ? AND d.summary IS NOT NULL ORDER BY d.created_at`,
     )
-    .get(sessionId) as { kind: DocumentKind; summary: string } | undefined;
-  return r;
+    .all(sessionId) as DocumentContext[];
+  if (!rows.length) return undefined;
+  return {
+    kind: rows[0]!.kind,
+    summary: rows
+      .map((r) => r.summary)
+      .join('\n\n')
+      .slice(0, MAX_CONTEXT_CHARS),
+  };
 }

@@ -13,6 +13,7 @@ import {
   type SessionSummary,
   sessionSummarySchema,
 } from '@shared/schemas/interview';
+import { companySchema } from '@shared/schemas/companies';
 import { type DocumentView, documentViewSchema } from '@shared/schemas/documents';
 import { settingsSchema } from '@shared/schemas/settings';
 import { Button } from '@/components/ui/button';
@@ -111,20 +112,32 @@ export function NewInterview() {
   const [busy, setBusy] = useState<string>();
   const [shortfall, setShortfall] = useState<Extract<CreateSessionResponse, { status: 'needs_decision' }>>();
   const [error, setError] = useState<string>();
-  // An interview can be based on a resume or job description (Documents); its questions are then written from it.
+  // Where the questions come from: the bank, a resume or job description (Documents; questions written from it),
+  // or a company (Companies; your questions first, then predictions). Value: '', 'doc:<id>' or 'company:<name>'.
   const [params] = useSearchParams();
-  const [documentId, setDocumentId] = useState(params.get('document') ?? '');
+  const [source, setSource] = useState(() =>
+    params.get('document')
+      ? `doc:${params.get('document')}`
+      : params.get('company')
+        ? `company:${params.get('company')}`
+        : '',
+  );
   const [documents, setDocuments] = useState<DocumentView[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]);
   useEffect(() => {
     let active = true;
     getJson('/api/documents', z.array(documentViewSchema))
       .then((list) => active && setDocuments(list.filter((d) => d.summary)))
       .catch(() => undefined);
+    getJson('/api/companies', z.array(companySchema))
+      .then((list) => active && setCompanies(list.map((c) => c.name)))
+      .catch(() => undefined);
     return () => {
       active = false;
     };
   }, []);
-  const basedOn = documents.find((d) => d.id === documentId);
+  const basedOn = documents.find((d) => `doc:${d.id}` === source);
+  const company = companies.find((c) => `company:${c}` === source);
 
   // New users get their default thinking time from Settings.
   useEffect(() => {
@@ -147,7 +160,9 @@ export function NewInterview() {
       basedOn
         ? `Writing ${valid.data.questionCount} questions from your ${KIND_LABELS[basedOn.kind].toLowerCase()} with the local model… this takes 1–3 minutes.`
         : onShortfall === 'generate'
-          ? 'Writing new questions with the local model… this can take a minute or two.'
+          ? company
+            ? `Predicting questions from your notes about ${company}… this can take a minute or two.`
+            : 'Writing new questions with the local model… this can take a minute or two.'
           : 'Preparing…',
     );
     setError(undefined);
@@ -155,7 +170,7 @@ export function NewInterview() {
       const res = await sendJson(
         'POST',
         '/api/sessions',
-        { config: valid.data, onShortfall, documentId: basedOn?.id },
+        { config: valid.data, onShortfall, documentId: basedOn?.id, company },
         createSessionResponseSchema,
       );
       if (res.status === 'needs_decision') {
@@ -212,22 +227,29 @@ export function NewInterview() {
                     ? basedOn.kind === 'resume'
                       ? 'Questions about the projects and roles in your resume, written by the local model.'
                       : "Questions on the job's required skills and responsibilities, written by the local model."
-                    : undefined
+                    : company
+                      ? `Your questions for ${company} first, then predictions; each one shows where it came from.`
+                      : undefined
                 }
               >
                 <select
                   id="based-on"
                   className={fieldClass}
-                  value={basedOn ? documentId : ''}
+                  value={basedOn || company ? source : ''}
                   onChange={(e) => {
-                    setDocumentId(e.target.value);
+                    setSource(e.target.value);
                     setShortfall(undefined);
                   }}
                 >
                   <option value="">From the question bank</option>
                   {documents.map((d) => (
-                    <option key={d.id} value={d.id}>
+                    <option key={d.id} value={`doc:${d.id}`}>
                       From {KIND_LABELS[d.kind].toLowerCase()}: {d.title}
+                    </option>
+                  ))}
+                  {companies.map((c) => (
+                    <option key={c} value={`company:${c}`}>
+                      For company: {c}
                     </option>
                   ))}
                 </select>
@@ -339,12 +361,15 @@ export function NewInterview() {
                 className="space-y-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-sm sm:col-span-2"
               >
                 <p>
-                  The local bank has {shortfall.available} matching question{shortfall.available === 1 ? '' : 's'} for
-                  these settings; you asked for {shortfall.requested}.
+                  {company
+                    ? `You have ${shortfall.available} ${INTERVIEW_TYPE_LABELS[config.interviewType].toLowerCase()} question${shortfall.available === 1 ? '' : 's'} for ${company}`
+                    : `The local bank has ${shortfall.available} matching question${shortfall.available === 1 ? '' : 's'} for these settings`}
+                  ; you asked for {shortfall.requested}.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" onClick={() => void submit('generate')} disabled={!!busy}>
-                    Generate {shortfall.requested - shortfall.available} with the local model
+                    {company ? 'Predict' : 'Generate'} {shortfall.requested - shortfall.available}{' '}
+                    {company ? 'from your notes' : 'with the local model'}
                   </Button>
                   {shortfall.available > 0 && (
                     <Button type="button" variant="outline" onClick={() => void submit('reduce')} disabled={!!busy}>
@@ -353,7 +378,9 @@ export function NewInterview() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Generated questions are saved to the bank and marked as generated.
+                  {company
+                    ? 'Predictions are written only from your notes and marked “Generated prediction, not verified”.'
+                    : 'Generated questions are saved to the bank and marked as generated.'}
                 </p>
               </div>
             )}

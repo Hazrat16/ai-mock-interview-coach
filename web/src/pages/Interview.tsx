@@ -8,6 +8,7 @@ import { loadMicOptions } from '@/audio/recorder';
 import type { AnyVoiceInput, VoiceInputEvents } from '@/audio/vad';
 import { usePlayerState } from '@/audio/useSpeech';
 import { VoiceAnswer, type VoiceSubmit } from '@/components/interview/VoiceAnswer';
+import { ProvenanceBadge } from '@/components/ProvenanceBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { markReplyAudio, markResult, markSubmitted } from '@/interview/latency';
@@ -469,6 +470,7 @@ export function Interview() {
           <p className="text-lg leading-relaxed" aria-live="polite">
             {current.text}
           </p>
+          {current.provenance && <ProvenanceBadge provenance={current.provenance} />}
           {!voiceTurn && <VoiceControls enabled={!!speakOn} />}
         </CardContent>
       </Card>

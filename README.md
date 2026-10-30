@@ -2,7 +2,7 @@
 
 A personal, audio-only mock interview app that runs entirely on this computer. It uses Ollama for the LLM, Piper for text-to-speech, and whisper.cpp for speech-to-text. There are no cloud services and no API keys.
 
-Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M13 (job description and resume interviews)**; M9 scoring calibration paused, M12 skipped (both need scores). Scoring is off (`shared/features.ts`): after an interview the report shows an interview-ready answer and the key points for each question.
+Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M14 (company-specific preparation)**; M9 scoring calibration paused, M12 skipped (both need scores). Scoring is off (`shared/features.ts`): after an interview the report shows an interview-ready answer and the key points for each question.
 
 ## How it runs
 

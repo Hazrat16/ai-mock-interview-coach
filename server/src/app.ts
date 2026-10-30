@@ -13,6 +13,7 @@ import { OllamaClient, OllamaError, OllamaUnavailableError } from './llm/ollamaC
 import { StructuredOutputError } from './llm/structured';
 import { healthRoutes } from './routes/health';
 import { JobRunner } from './evaluation/jobRunner';
+import { companyRoutes } from './routes/companies';
 import { dataRoutes } from './routes/data';
 import { documentRoutes } from './routes/documents';
 import { evaluationQueue, evaluationRoutes } from './routes/evaluations';
@@ -128,28 +129,27 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
     app.addHook('onClose', async () => runner.stop());
   }
 
-  sessionRoutes(
-    app,
-    new InterviewEngine({
-      db,
-      llm,
-      settings,
-      numThread: env.LLM_NUM_THREAD,
-      warmUp: env.NODE_ENV !== 'test',
-      log: (msg) => app.log.info(msg),
-      // After the engine's own transaction has finished.
-      onCompleted: (sessionId) =>
-        setImmediate(() => {
-          if (!db.isOpen) return; // the app is shutting down; "Evaluate this interview" in the report catches up
-          try {
-            queue.enqueue(sessionId);
-          } catch (err) {
-            app.log.error(err, 'could not queue evaluations');
-          }
-        }),
-      ...options.engine,
-    }),
-  );
+  const engine = new InterviewEngine({
+    db,
+    llm,
+    settings,
+    numThread: env.LLM_NUM_THREAD,
+    warmUp: env.NODE_ENV !== 'test',
+    log: (msg) => app.log.info(msg),
+    // After the engine's own transaction has finished.
+    onCompleted: (sessionId) =>
+      setImmediate(() => {
+        if (!db.isOpen) return; // the app is shutting down; "Evaluate this interview" in the report catches up
+        try {
+          queue.enqueue(sessionId);
+        } catch (err) {
+          app.log.error(err, 'could not queue evaluations');
+        }
+      }),
+    ...options.engine,
+  });
+  sessionRoutes(app, engine);
+  companyRoutes(app, db, engine, llm, settings, env.LLM_NUM_THREAD);
 
   // Production: serve the built UI. In development Vite serves it and proxies /api here.
   if (env.NODE_ENV === 'production') {
