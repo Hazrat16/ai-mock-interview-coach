@@ -66,8 +66,8 @@ Before practice: plug in AC power, close heavy browser tabs, and keep the speake
 ## 6. Verify offline operation
 1. Start the app once online, then stop it.
 2. Disconnect: `nmcli radio wifi off` and unplug Ethernet (or `nmcli networking off`).
-3. `npm start`, then run a complete 2-question interview and wait for its evaluation report.
-4. In another terminal during the interview: `bash scripts/net-audit.sh`. It should list no non-loopback connections.
+3. `make start`, then run a complete 2-question interview and wait for its report (interview-ready answers).
+4. In another terminal during the interview: `make net-audit ARGS="--seconds 120"`. It should say "No connections leave this computer." (It also works online: it checks the app's and the AI services' connections, not other programs'.)
 5. Reconnect: `nmcli networking on` / `nmcli radio wifi on`.
 
 ## 7. Updates (internet required, optional)

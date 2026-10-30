@@ -147,6 +147,15 @@ Every milestone ends with this **Definition of Done**:
 **Tasks:** JSON export; backup and restore (version check; restore writes a safety backup first); delete per session, transcripts-only, all; optional audio retention with purge; **offline run** (09 §6).
 **Acceptance:** R14, R15; backup → delete all → restore gives identical checksums; `net-audit.sh` shows zero non-loopback connections during an interview.
 **Risk callout:** restore and delete-all overwrite data. The UI requires typing a confirmation word, and restore always makes a safety backup first.
+**Implemented as (M11):** `server/src/data/manage.ts` and `routes/data.ts`; Settings "Data & privacy" (`DataCard`, `ConfirmAction`).
+- Export: one readable JSON file, every interview as its report, plus settings (`GET /api/data/export`).
+- Restore: from a backup in the backups folder (only listed names), checked first (intact, an Interview Coach database, not from a newer app). The current data is saved as `pre-restore-…db`; SQLite's backup API copies the file onto the live database, then older backups are migrated. Typed word: RESTORE.
+- Delete transcripts (keeps the interviews; removes answer text, the interviewer's notes on answers, evaluations and interview-ready answers) and delete everything (interviews, evaluations, speech-check recordings; settings and the question bank stay). Typed word: DELETE. No safety backup for deletes (it would keep a copy of what was deleted); the page says older backups still hold the data. Delete one interview from its report.
+- Refused while an interview is in progress.
+- Audio retention (R15): not built, because answer audio is never written to disk (only the browser and the request to Whisper have it); `e2e/voice-interview.spec.ts` checks that no audio files exist after a spoken interview. Speech-check recordings are saved only on request and deleted with "delete everything".
+- `make net-audit` (`scripts/net-audit.ts`): published ports must be 127.0.0.1; the app's own connections and the connections inside each service container (`/proc/net`) may only reach this computer or the services' network. Checked to catch a real non-local connection.
+- Fix: backups made in the same second overwrote each other (names now to the millisecond).
+- Tests: `server/test/integration/data.test.ts` (backup → delete all → restore gives identical row counts and checksums for every table, search index included), `e2e/data.spec.ts`.
 
 ## M12. Adaptive difficulty, retry, weakness focus, exercises, goals
 **Acceptance:** R17–R20. The planner explains every selection ("chosen because: trade-off reasoning avg 48 over 4 attempts").

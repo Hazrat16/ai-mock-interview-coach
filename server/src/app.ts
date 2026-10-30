@@ -13,6 +13,7 @@ import { OllamaClient, OllamaError, OllamaUnavailableError } from './llm/ollamaC
 import { StructuredOutputError } from './llm/structured';
 import { healthRoutes } from './routes/health';
 import { JobRunner } from './evaluation/jobRunner';
+import { dataRoutes } from './routes/data';
 import { evaluationQueue, evaluationRoutes } from './routes/evaluations';
 import { historyRoutes } from './routes/history';
 import { llmRoutes } from './routes/llm';
@@ -90,7 +91,9 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
   llmRoutes(app, env, llm);
   speechRoutes(app, tts, piper, settings);
   vadAssetRoutes(app);
-  sttRoutes(app, whisper, env.WHISPER_MODEL, new SampleStore(join(env.DATA_DIR, 'stt-samples')));
+  const samples = new SampleStore(join(env.DATA_DIR, 'stt-samples'));
+  sttRoutes(app, whisper, env.WHISPER_MODEL, samples);
+  dataRoutes(app, db, env.DATA_DIR, version, samples);
   if (env.NODE_ENV !== 'test') {
     // Fixed phrases get cached audio right away, so the first interview never waits for them.
     app.addHook('onListen', async () => {

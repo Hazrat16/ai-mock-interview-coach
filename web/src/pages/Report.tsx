@@ -1,6 +1,6 @@
 import { Keyboard, Mic } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { z } from 'zod';
 import { type SessionReport, sessionReportSchema } from '@shared/schemas/evaluation';
 import type { InterviewConfig } from '@shared/schemas/interview';
@@ -75,6 +75,15 @@ export function Report() {
     };
   }, [load, busy]);
 
+  const navigate = useNavigate();
+  const remove = async () => {
+    if (!window.confirm('Delete this interview, your answers and its interview-ready answers? This cannot be undone.'))
+      return;
+    const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+    if (res.ok) void navigate('/history', { replace: true });
+    else setError(`Could not delete the interview (HTTP ${res.status}).`);
+  };
+
   const act = async (path: string) => {
     try {
       await sendJson('POST', path, {}, z.unknown());
@@ -111,9 +120,14 @@ export function Report() {
             {report.endedAt && ` · ${new Date(report.endedAt).toLocaleString()}`}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link to="/interview/new">New interview</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => void remove()}>
+            Delete interview
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/interview/new">New interview</Link>
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -173,7 +187,11 @@ export function Report() {
                       ) : (
                         <Keyboard className="mt-0.5 size-3.5 shrink-0" aria-label="Typed" />
                       )}
-                      <span>{t.answer.transcript}</span>
+                      {t.answer.transcript ? (
+                        <span>{t.answer.transcript}</span>
+                      ) : (
+                        <span className="italic">Transcript deleted.</span>
+                      )}
                     </p>
                   ) : (
                     <p className="italic text-muted-foreground">Skipped</p>

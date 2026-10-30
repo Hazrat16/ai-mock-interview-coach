@@ -1,11 +1,12 @@
-import { mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { backup } from 'node:sqlite';
 import type { Db } from './connection';
 
 export type BackupInfo = { name: string; sizeBytes: number; createdAt: string };
 
-const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-');
+/** 20261030-142433-123: to the millisecond, so two backups in the same second do not overwrite each other. */
+const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').replace('.', '-').replace('Z', '');
 
 export const backupDir = (dataDir: string) => join(dataDir, 'backups');
 
@@ -13,7 +14,8 @@ export const backupDir = (dataDir: string) => join(dataDir, 'backups');
 export async function createBackup(db: Db, dataDir: string, prefix = 'coach'): Promise<string> {
   const dir = backupDir(dataDir);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  const path = join(dir, `${prefix}-${stamp()}.db`);
+  let path = join(dir, `${prefix}-${stamp()}.db`);
+  for (let n = 2; existsSync(path); n++) path = join(dir, `${prefix}-${stamp()}-${n}.db`);
   await backup(db, path);
   return path;
 }

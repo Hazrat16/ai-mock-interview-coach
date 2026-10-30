@@ -1,5 +1,6 @@
 // A full spoken interview in Chrome with a fake microphone, against the real Ollama, Piper and Whisper.
-import { writeFileSync } from 'node:fs';
+import { readdirSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { wordErrorRate } from '../shared/text/wer';
 import { ANSWER } from './global-setup';
@@ -86,5 +87,15 @@ test('spoken interview: questions are read aloud, answers are heard, transcribed
   // A vague answer gets a follow-up from the interviewer (granite asks one for answers like this).
   expect(detail.turns.map((t) => t.kind)).toContain('follow_up');
   expect([...hosts]).toEqual(['127.0.0.1']);
+
+  // R15: the audio of the answers is never written to disk. Only the interviewer's synthesized phrases are
+  // cached (tts-cache); speech-check recordings exist only after recording one in Settings.
+  const { dir } = (await (await page.request.get('/api/backups')).json()) as { dir: string };
+  const dataDir = dirname(dir);
+  const audio = (readdirSync(dataDir, { recursive: true }) as string[]).filter(
+    (f) => /\.(wav|webm|ogg|mp3|flac|opus|m4a)$/i.test(f) && !f.startsWith('tts-cache'),
+  );
+  expect(audio, `audio files in ${dataDir}`).toEqual([]);
+  expect(readdirSync(join(dataDir, 'tts-cache')).length).toBeGreaterThan(0); // the check looks in the right place
   await page.request.delete(`/api/sessions/${sessionId}`);
 });
