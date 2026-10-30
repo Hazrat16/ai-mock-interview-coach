@@ -1,12 +1,10 @@
 import { CircleAlert, Loader2, RotateCcw } from 'lucide-react';
+import { SCORING } from '@shared/features';
 import type { EvaluationView as Evaluation } from '@shared/schemas/evaluation';
 import { Button } from '@/components/ui/button';
 
-/**
- * Scores are hidden for now: the transcripts still mishear technical terms, so the marking is not reliable
- * yet. The evaluation still runs (it writes the interview-ready answer); set to true to show scores again.
- */
-export const SHOW_SCORES = false;
+/** Scores are shown only while scoring is on (shared/features.ts). */
+export const SHOW_SCORES = SCORING;
 
 /** Colour by band: below 50 needs work, 75+ strong. Practice scores, not a hiring verdict. */
 export function scoreClass(score: number) {
@@ -46,24 +44,27 @@ export function EvaluationView({ evaluation, onRetry }: { evaluation: Evaluation
       <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
         <Loader2 className="size-4 animate-spin" aria-hidden />
         {e.status === 'running'
-          ? 'Writing the interview-ready answer with the local model… (usually 2–4 minutes)'
+          ? `Writing the interview-ready answer with the local model… (usually ${SHOW_SCORES ? '2–4 minutes' : 'under a minute'})`
           : 'Waiting for the local model.'}
         {e.status === 'pending' && e.error && <span> Last attempt: {e.error}</span>}
       </p>
     );
   }
-  if (e.status === 'failed' || !e.result || e.overallScore === null) {
+  if (e.status === 'failed' || !e.result) {
     return (
       <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
-        <span className="text-destructive">The evaluation failed: {e.error ?? 'unknown error'}</span>
+        <span className="text-destructive">
+          {SHOW_SCORES ? 'The evaluation failed' : 'Could not write the interview-ready answer'}: {e.error ?? 'unknown error'}
+        </span>
         <Button variant="outline" size="sm" onClick={onRetry}>
-          <RotateCcw aria-hidden /> Retry evaluation
+          <RotateCcw aria-hidden /> {SHOW_SCORES ? 'Retry evaluation' : 'Try again'}
         </Button>
       </div>
     );
   }
   const r = e.result;
-  if (!SHOW_SCORES) {
+  // Answer-only results (written while scoring was off) have no score.
+  if (e.overallScore === null || !SHOW_SCORES) {
     return (
       <div className="space-y-1">
         <h4 className="text-sm font-medium">Interview-ready answer</h4>

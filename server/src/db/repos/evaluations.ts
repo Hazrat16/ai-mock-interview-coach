@@ -128,7 +128,8 @@ export function completeEvaluation(
   job: Job,
   e: {
     model: string;
-    overall: number;
+    /** Null for an interview-ready answer written without scoring. */
+    overall: number | null;
     result: EvaluationResult;
     unsupported: number;
     durationMs: number;

@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify';
+import { SCORING } from '@shared/features';
 import type { Db } from '../db/connection';
 import { enqueueSessionEvaluations, retryEvaluation } from '../db/repos/evaluations';
 import { getSession } from '../db/repos/sessions';
 import { conflict, notFound } from '../errors';
 import { EVALUATION_PROMPT_VERSION } from '../evaluation/evaluator';
+import { READY_ANSWER_PROMPT_VERSION } from '../evaluation/readyAnswer';
 import { buildReport } from '../evaluation/report';
 import { rubricFor } from '../evaluation/rubrics';
 
@@ -19,7 +21,8 @@ export function evaluationQueue(db: Db, evaluatorModel: () => string, wake: () =
       const session = getSession(db, sessionId);
       if (!session) return 0;
       const rubric = rubricFor(session.config.interviewType);
-      const n = enqueueSessionEvaluations(db, sessionId, rubric, EVALUATION_PROMPT_VERSION, evaluatorModel());
+      const version = SCORING ? EVALUATION_PROMPT_VERSION : READY_ANSWER_PROMPT_VERSION;
+      const n = enqueueSessionEvaluations(db, sessionId, rubric, version, evaluatorModel());
       if (n) wake();
       return n;
     },

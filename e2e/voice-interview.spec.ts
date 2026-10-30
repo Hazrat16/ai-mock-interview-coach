@@ -58,18 +58,18 @@ test('spoken interview: questions are read aloud, answers are heard, transcribed
     ),
   );
   // The report opens by itself after the closing. Key points come from the bank right away; the
-  // interview-ready answers from the evaluations in the background (qwen, ~3 min per question).
+  // interview-ready answers are written in the background (qwen, under a minute per question; scoring is off).
   await page.waitForURL(/\/report$/, { timeout: 60_000 });
   await expect(page.getByText('How you spoke')).toBeVisible();
   await expect(page.getByText('Key points to mention').first()).toBeVisible();
   await expect(page.getByText('average score')).toBeHidden(); // scores are hidden for now (SHOW_SCORES)
   const evalStart = Date.now();
-  await expect(page.getByText(/2 of 2 questions ready/)).toBeVisible({ timeout: 9 * 60_000 });
+  await expect(page.getByText(/2 of 2 questions ready/)).toBeVisible({ timeout: 4 * 60_000 });
   await expect(page.getByText('Interview-ready answer')).toHaveCount(2);
   const evalSeconds = Math.round((Date.now() - evalStart) / 1000);
   const report = (await (await page.request.get(`/api/sessions/${sessionId}/report`)).json()) as {
-    average: number;
-    items: { evaluation: { status: string; overallScore: number; model: string; durationMs: number } }[];
+    average: number | null;
+    items: { evaluation: { status: string; overallScore: number | null; model: string; durationMs: number } }[];
   };
   writeFileSync(
     'test-results/voice-interview-report.json',
@@ -79,10 +79,8 @@ test('spoken interview: questions are read aloud, answers are heard, transcribed
       2,
     ),
   );
-  for (const i of report.items)
-    expect(i.evaluation).toMatchObject({ status: 'done', overallScore: expect.any(Number) });
-  // A vague answer (no example, no result) should not score well.
-  expect(report.average).toBeLessThan(60);
+  for (const i of report.items) expect(i.evaluation).toMatchObject({ status: 'done', overallScore: null });
+  expect(report.average).toBeNull();
 
   expect(turns.length).toBeGreaterThanOrEqual(2); // each answer → the next question or the closing
   // A vague answer gets a follow-up from the interviewer (granite asks one for answers like this).

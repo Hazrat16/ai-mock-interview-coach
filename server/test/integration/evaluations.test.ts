@@ -43,8 +43,11 @@ const evaluationJson = (score = 3) =>
     follow_up_exercise: 'Retell the story ending with one lesson.',
   });
 
+/** A full evaluation, or (scoring off) the interview-ready answer only. */
 const isEvaluation = (body: Record<string, unknown>) =>
-  String((body.messages as { content: string }[])[0]!.content).includes('You evaluate mock interview answers');
+  /You evaluate mock interview answers|You coach candidates/.test(
+    String((body.messages as { content: string }[])[0]!.content),
+  );
 const decisionNext = chatReply(
   JSON.stringify({ summary: 'Covered it.', quality_signal: 'ok', action: 'next', follow_up: null }),
 );
@@ -79,6 +82,7 @@ const runner = (over: Partial<ConstructorParameters<typeof JobRunner>[0]> = {}) 
     fallbackModel: 'granite4:3b',
     log: () => undefined,
     isPaused: () => false,
+    scoring: true,
     ...over,
   });
 
@@ -166,6 +170,22 @@ describe('evaluation pipeline', () => {
     const evalRequests = fake!.requests.filter(isEvaluation);
     expect(evalRequests[0]).toMatchObject({ model: 'qwen3.5:4b', options: { temperature: 0.1, seed: 42 } });
     expect(db.prepare('SELECT COUNT(*) AS n FROM evaluation_scores').get()).toEqual({ n: 10 });
+  });
+
+  it('with scoring off, writes only the interview-ready answer, without a score', async () => {
+    await setup(() => chatReply(JSON.stringify({ example_answer: ' In my internship I disagreed about caching... ' })));
+    const id = await finishedInterview();
+    expect(await runner({ scoring: false }).runOnce()).toBe('done');
+    const r = await report(id);
+    expect(r.items[0]!.evaluation).toMatchObject({ status: 'done', overallScore: null, model: 'qwen3.5:4b' });
+    expect(r.items[0]!.evaluation!.result).toMatchObject({
+      criteria: [],
+      exampleAnswer: 'In my internship I disagreed about caching...',
+    });
+    expect(r.average).toBeNull();
+    const prompt = fake!.requests.find(isEvaluation)!;
+    expect(String((prompt.messages as { content: string }[])[1]!.content)).toContain(ANSWER);
+    expect(db.prepare('SELECT COUNT(*) AS n FROM evaluation_scores').get()).toEqual({ n: 0 });
   });
 
   it('uses the fallback model when the evaluator gives invalid output twice', async () => {

@@ -1,6 +1,7 @@
 // Runs queued evaluations in the background, one at a time (CPU-friendly). Pauses while an interview is
 // going on, survives restarts (running work is re-queued at start), and waits instead of failing while Ollama
 // is not running.
+import { SCORING } from '@shared/features';
 import type { InterviewConfig } from '@shared/schemas/interview';
 import type { Db } from '../db/connection';
 import {
@@ -17,6 +18,7 @@ import { getTurns } from '../db/repos/sessions';
 import { OllamaError, OllamaUnavailableError, type OllamaClient } from '../llm/ollamaClient';
 import { StructuredOutputError } from '../llm/structured';
 import { evaluate, type EvaluationInput } from './evaluator';
+import { prepareReadyAnswer } from './readyAnswer';
 import { rubricByKey } from './rubrics';
 
 export type RunnerDeps = {
@@ -32,6 +34,8 @@ export type RunnerDeps = {
   unavailableMs?: number;
   timeoutMs?: number;
   isPaused?: () => boolean;
+  /** Full rubric evaluation with scores, or only the interview-ready answer. Default: shared/features.ts. */
+  scoring?: boolean;
 };
 
 /** Everything the evaluator needs for one main question: its exchange, config and expected points. */
@@ -144,21 +148,35 @@ export class JobRunner {
     let lastError = '';
     for (const m of models) {
       try {
-        const r = await evaluate(this.deps.llm, input, {
+        const opts = {
           model: m,
           numThread: this.deps.numThread,
           timeoutMs: this.deps.timeoutMs,
           signal: this.abort?.signal,
-        });
-        completeEvaluation(this.deps.db, job, {
-          model: m,
-          overall: r.overall,
-          result: r.result,
-          unsupported: r.unsupported,
-          durationMs: r.ms,
-          skills: Object.fromEntries(input.rubric.criteria.map((c) => [c.key, c.skill])),
-        });
-        this.deps.log(`evaluation done with ${m} in ${Math.round(r.ms / 1000)} s (score ${r.overall})`);
+        };
+        if (this.deps.scoring ?? SCORING) {
+          const r = await evaluate(this.deps.llm, input, opts);
+          completeEvaluation(this.deps.db, job, {
+            model: m,
+            overall: r.overall,
+            result: r.result,
+            unsupported: r.unsupported,
+            durationMs: r.ms,
+            skills: Object.fromEntries(input.rubric.criteria.map((c) => [c.key, c.skill])),
+          });
+          this.deps.log(`evaluation done with ${m} in ${Math.round(r.ms / 1000)} s (score ${r.overall})`);
+        } else {
+          const r = await prepareReadyAnswer(this.deps.llm, input, opts);
+          completeEvaluation(this.deps.db, job, {
+            model: m,
+            overall: null,
+            result: r.result,
+            unsupported: 0,
+            durationMs: r.ms,
+            skills: {},
+          });
+          this.deps.log(`interview-ready answer done with ${m} in ${Math.round(r.ms / 1000)} s`);
+        }
         return 'done';
       } catch (err) {
         if (err instanceof OllamaUnavailableError || (err as Error).name === 'AbortError') {

@@ -133,6 +133,8 @@ Every milestone ends with this **Definition of Done**:
 ## M9. Scoring consistency harness
 **Files:** `server/test/fixtures/golden-answers/*.json` (≥ 5 questions per type × strong/medium/weak), `scripts/calibrate-eval.ts`.
 **Tasks and acceptance:** see 08 §2. Rubric anchors are tuned until the targets are met; results are saved to `docs/benchmarks/`.
+**Status: paused (2026-10-30).** Scores are hidden (`SHOW_SCORES = false`); the report shows interview-ready answers and key points. Scoring waits until speech-to-text handles technical terms. Built: golden set, `make calibrate` (cached, resumable), prompt v3, the two code safeguards. Pilot results and two bugs it found (Ollama OOM, 300 s fetch cut-off): [docs/benchmarks/calibration-2026-10-30-qwen3.5-4b-pilot.md](../benchmarks/calibration-2026-10-30-qwen3.5-4b-pilot.md).
+**Scoring off (`shared/features.ts`, `SCORING = false`):** the background job writes only the interview-ready answer (`evaluation/readyAnswer.ts`): ~37 s per question instead of 2-4 min (e2e: 60 s for 2 questions, was 186 s). Stored as an evaluation without a score, so Retry and the report work unchanged. Later milestones leave out score-based parts while scoring is off.
 
 ## M10. History and dashboard
 **Files:** `0002_fts.sql`, `routes/{history,dashboard}.ts`, `learning/skillProfile.ts`, pages `Dashboard`, `History`, `Progress`, `components/charts/*`.
