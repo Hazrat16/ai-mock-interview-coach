@@ -1,0 +1,48 @@
+{
+  "rubric": "system_design",
+  "items": [
+    {
+      "id": "sd-url-shortener",
+      "interviewType": "system_design",
+      "question": "How would you design a URL shortening service?",
+      "strong": "I would start with requirements: create a short link for a long URL, redirect quickly, maybe custom aliases and expiry, and basic click counts. Say one hundred million new links a month and reads about a hundred times more than writes, so it is read heavy. For keys, I would use a counter or ID generator and encode the number in base sixty two, which gives short, unique codes without collision checks; to avoid guessable codes I could shuffle the ID space. Storage is a simple key value model, code to long URL, created at and owner, so a key value store or Postgres with an index on the code both work. The redirect path should be fast: an API server looks up the code in a Redis cache first, then the database, and returns a three oh one or three oh two; I would use three oh two if we want to count every click. Clicks go to a queue and are aggregated asynchronously so they do not slow down redirects. For abuse, rate limit link creation and check URLs against a malware list.",
+      "medium": "I would have an API that takes a long URL and returns a short code. The code can be generated with base sixty two from an ID. I would store the mapping in a database, and when someone opens the short link, the server looks up the code and redirects. Because there are many more reads than writes, I would add a cache like Redis in front of the database.",
+      "weak": "I would make a website where you paste the URL, and the server makes a random short string and saves it in a database. Then when you open it, it redirects you.",
+      "variants": {
+        "misheard": "I would have an API that takes a long URL and returns a short code. The code can be generated with base sixty two from an ID. I would store the mapping in a data base, and when someone opens the short link, the server looks up the code and redirects. Because there are many more reads than writes, I would add a cash like red is in front of the data base."
+      }
+    },
+    {
+      "id": "sd-rate-limiter",
+      "interviewType": "system_design",
+      "question": "How would you design a rate limiter for a public API?",
+      "strong": "First, what do we limit: requests per API key, per user or per IP, for example one hundred requests per minute per key, maybe with higher limits for paid plans. For the algorithm, a token bucket is a good default: each key has a bucket that refills at a fixed rate, and each request takes a token, which allows short bursts but limits the average; a sliding window counter is an alternative that is more even at window edges. I would run it at the API gateway, so requests are rejected before they reach the services. Since there are several gateway instances, the counters have to be shared, so I would keep them in Redis and update them atomically with a Lua script or an increment with expiry. If Redis is down, I would fail open with a local in-memory limit so the API stays available. When a client is limited, it gets HTTP four twenty nine with a retry after header, and normal responses include headers with the limit and remaining requests.",
+      "medium": "I would limit requests per API key, like one hundred per minute. I could use a token bucket algorithm, where tokens refill over time and each request uses one. I would store the counters in Redis so all servers share them. When the limit is reached, the API returns status four twenty nine.",
+      "weak": "I would count how many requests each user sends, and if it is too many I would block the user. I would save the count in a variable on the server."
+    },
+    {
+      "id": "sd-todo",
+      "interviewType": "system_design",
+      "question": "How would you design the backend for a to-do list app used by a small team?",
+      "strong": "Since it is a small team, I would keep it simple: one backend service and one Postgres database. The core entities are users, teams, lists and tasks; a task has a title, status, assignee, due date and belongs to a list, and a list belongs to a team, with a membership table for users and teams. The API is REST: create and list lists, create, update, assign and complete tasks, with filters like assigned to me or due this week. For authentication, login with email and password stored as a bcrypt hash, or sign in with Google, and every request checks that the user is a member of the team that owns the list. Deployment can be a single container on a small cloud instance or a platform like Render, with daily database backups. Things to add later: real-time updates with websockets so teammates see changes, notifications for due tasks, and an activity log. None of that needs a complex architecture at this scale.",
+      "medium": "I would build a REST API with a database. The main tables would be users, lists and tasks, and tasks have a title, a status and an assigned user. There would be endpoints to create, update and delete tasks. Users log in with a password and get a token. I would deploy it on a simple cloud server.",
+      "weak": "I would use microservices with Kubernetes so it can scale, and a NoSQL database because it is faster. Then I would add the to-do features."
+    },
+    {
+      "id": "sd-file-sharing",
+      "interviewType": "system_design",
+      "question": "How would you design a file upload and sharing service?",
+      "strong": "I would keep the files and the metadata apart: the files go to object storage like S3, and a database stores metadata such as file ID, owner, name, size, content type, and the storage key. For uploads, the API creates a metadata record and returns a pre-signed URL, so the client uploads directly to object storage and the API servers do not carry the bytes. Large files use multipart uploads, which can be resumed if the connection drops, because only missing parts are uploaded again. For sharing, the owner can share with specific users, stored as permissions, or create a share link with a random, unguessable token, an optional expiry, and read only access; every download checks permissions and then returns a short lived signed download URL. After upload, a background job scans files for viruses and only then marks them available. I would enforce per user quotas and a maximum file size, and put a CDN in front for popular downloads.",
+      "medium": "I would store the files in object storage like S3 and keep the metadata in a database, like the owner and file name. To share a file, the user can create a link with a random token. When someone opens the link, the server checks the token and lets them download the file. I would also limit the file size.",
+      "weak": "I would save the uploaded files in a folder on the server and store the path in the database. For sharing I would send the file by email."
+    },
+    {
+      "id": "sd-notifications",
+      "interviewType": "system_design",
+      "question": "How would you design a notification system that sends email, SMS and push notifications?",
+      "strong": "Other services should not send notifications directly; they publish a notification request, like user ID, event type and data, to a notification service, which puts it on a queue such as Kafka or RabbitMQ. The notification service looks up the user's preferences, which channels they enabled and quiet hours, and renders the message from a template per event type and channel. Then it puts one message per channel on separate queues, with separate workers for email, SMS and push, because each provider has different speed, cost and limits, and an SMS outage should not block email. Workers retry failed sends with exponential backoff, and after a few attempts move the message to a dead letter queue. To avoid sending duplicates during retries, each notification has an idempotency key that is checked before sending. I would also rate limit per user, so nobody gets twenty SMS in a minute, and store a delivery log for debugging and analytics.",
+      "medium": "I would put the notifications in a queue, and have workers for each channel: one for email, one for SMS and one for push. If sending fails, the worker retries. I would also store user preferences, so users can choose which notifications they want to receive.",
+      "weak": "When something happens, the backend calls the email API, the SMS API and the push API one after the other to send the message to the user."
+    }
+  ]
+}

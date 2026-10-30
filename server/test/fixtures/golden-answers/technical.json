@@ -1,0 +1,54 @@
+{
+  "rubric": "technical",
+  "items": [
+    {
+      "id": "tech-race",
+      "interviewType": "technical",
+      "question": "What is a race condition? Give an example and explain how to prevent it.",
+      "strong": "A race condition is when the result of a program depends on the timing of two or more threads or processes that access shared data, and at least one of them writes. A classic example is a bank balance of one hundred: thread A deposits fifty and thread B withdraws twenty. Both read one hundred, A writes one hundred fifty, B writes eighty, and the deposit is lost, because read, modify and write are not atomic. To prevent it you make that section atomic. Inside one process you can use a mutex around the update, or an atomic increment if it is a simple counter. In a database you can do the update in one statement, like balance equals balance plus fifty, use a transaction with select for update, or optimistic locking with a version column. Locks are simple but reduce concurrency and can deadlock if you take them in different orders, while optimistic locking is cheap when conflicts are rare but needs retries.",
+      "medium": "A race condition happens when two threads access the same data at the same time and the result depends on which one runs first. For example two threads updating a bank balance at the same time, and one update gets lost. To prevent it you can use a lock or a mutex so only one thread changes the balance at a time, or use a database transaction.",
+      "weak": "A race condition is when two processes are racing, so one is faster than the other. You can prevent it by making the code faster or by adding some delay so they do not run at the same time.",
+      "variants": {
+        "misheard": "A rest condition happens when two threads access the same data at the same time and the result depends on which one runs first. For example two threads updating a bank balance at the same time, and one update gets lost. To prevent it you can use a lock or a new text so only one thread changes the balance at a time, or use a data base transaction."
+      }
+    },
+    {
+      "id": "tech-index",
+      "interviewType": "technical",
+      "question": "How does an index speed up a database query, and what does it cost?",
+      "strong": "Without an index, the database has to do a full table scan, checking every row, which is linear in the table size. An index is a separate sorted structure, usually a B-tree, that maps column values to row locations. Because it is sorted and balanced, finding a value takes a logarithmic number of steps, and range queries and order by on that column can walk the leaves in order. The cost is on writes and storage: every insert, update or delete has to update each index, so too many indexes slow down writes, and they take disk space and memory. You choose indexes based on the queries you actually run, for example columns in where clauses and joins. For a composite index the column order matters: an index on user id and created at helps queries filtering by user id, but not queries filtering only by created at.",
+      "medium": "An index is like the index in a book. Instead of scanning the whole table, the database can look up the value in the index, which is usually a B-tree, and jump to the right rows, so it is much faster. The cost is that inserts and updates get slower, because the index also has to be updated, and it uses extra storage.",
+      "weak": "An index makes the query faster because the database already knows where the data is. I think it does not really cost anything, so it is good to add indexes on all the columns.",
+      "variants": {
+        "misheard": "An index is like the index in a book. Instead of scanning the whole table, the database can look up the value in the index, which is usually a bee tree, and jump to the right rows, so it is much faster. The cost is that inserts and updates get slower, because the index also has to be updated, and it uses extra storage."
+      }
+    },
+    {
+      "id": "tech-event-loop",
+      "interviewType": "technical",
+      "question": "Explain how the JavaScript event loop works.",
+      "strong": "JavaScript runs your code on a single thread with one call stack. Slow operations like timers, network requests or file reads are handed to the environment, the browser or Node, which runs them in the background. When they finish, their callbacks are put in a queue. The event loop waits until the call stack is empty, then first runs all microtasks, which are promise callbacks and queue microtask, and only then takes the next macrotask, like a set timeout callback or an I O event. That is why a promise then callback runs before a set timeout with zero delay, even if the timeout was scheduled first. The practical consequence is that long synchronous code, like a big loop or JSON parsing a huge file, blocks everything: no clicks are handled and no other requests are served in Node until it finishes. So heavy work should be split into chunks or moved to a worker thread.",
+      "medium": "JavaScript is single threaded, so it has one call stack. When you do something asynchronous like a set timeout or a fetch, the callback goes into a queue, and the event loop takes callbacks from the queue when the call stack is empty. Promises go into a microtask queue which runs before the normal task queue.",
+      "weak": "The event loop is a loop that keeps running in JavaScript and checks for events like clicks. It makes JavaScript multi threaded so it can do many things at the same time.",
+      "variants": {
+        "misheard": "Java script is single threaded, so it has one cold stack. When you do something a synchronous like a set time out or a fetch, the call back goes into a queue, and the even loop takes call backs from the queue when the cold stack is empty. Promises go into a micro test queue which runs before the normal task queue."
+      }
+    },
+    {
+      "id": "tech-authn-authz",
+      "interviewType": "technical",
+      "question": "What is the difference between authentication and authorization? How would you implement them in a web app?",
+      "strong": "Authentication answers who you are, and authorization answers what you are allowed to do, and authentication always comes first. For authentication I would store passwords only as slow salted hashes, for example with bcrypt or argon two, never in plain text. After login there are two common options: a server-side session with a random session ID in an HTTP only, secure cookie, which is easy to revoke, or a signed token like a JWT, which is stateless but harder to revoke, so you keep access tokens short lived and use a refresh token. For authorization I would give users roles or permissions, and check them on the server for every request, for example in a middleware, plus ownership checks like this order belongs to this user. Hiding a button in the frontend is not authorization, because anyone can call the API directly.",
+      "medium": "Authentication is checking who the user is, for example with a username and password, and authorization is checking what they are allowed to do. In a web app I would hash the passwords and use JWT tokens after login. For authorization I would use roles like admin and user and check them in the backend.",
+      "weak": "Authentication and authorization are basically the same thing, they are both about security and logging in. I would use a login page and save the password in the database."
+    },
+    {
+      "id": "tech-process-thread",
+      "interviewType": "technical",
+      "question": "Explain the difference between a process and a thread.",
+      "strong": "A process is a running program with its own memory space, so one process cannot directly read another's memory, and if it crashes the others are not affected. A thread is a unit of execution inside a process, and all threads of a process share the same memory and open files. Because of that, threads are cheaper to create and to switch between, and they can communicate just by reading and writing shared data, but that is also the risk: you need locks or other synchronization to avoid race conditions, and one bad thread can crash the whole process. Processes communicate through mechanisms like pipes, sockets or shared memory segments, which is slower but safer. I would use threads for parallel work on shared data inside one program, and separate processes when I want isolation, for example worker processes in a web server, or in Python to get around the global interpreter lock.",
+      "medium": "A process is an instance of a program with its own memory, and a thread runs inside a process. Threads in the same process share memory, so they are lighter and faster to create than processes, but you have to be careful with shared data. Processes are more isolated from each other.",
+      "weak": "A process is a big task and a thread is a small task. The computer runs threads one by one and processes all at the same time, so processes are faster."
+    }
+  ]
+}

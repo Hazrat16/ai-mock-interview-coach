@@ -16,6 +16,9 @@ services:
       OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-8192}
       # Interviewer and evaluator together (~6.4 GB) would crowd the 7 GB limit; swap instead (5-9 s).
       OLLAMA_MAX_LOADED_MODELS: '1'
+      # llama-server keeps old prompts in RAM, up to 8 GB by default: past the 7 GB limit, so long
+      # evaluation runs got OOM-killed. The shared system-prompt prefix is reused without it.
+      LLAMA_ARG_CACHE_RAM: ${LLAMA_CACHE_RAM_MB:-512}
     volumes:
       - type: bind
         source: ${MODELS_DIR:?MODELS_DIR is not set; run make setup}/ollama

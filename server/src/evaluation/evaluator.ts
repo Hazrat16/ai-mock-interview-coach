@@ -10,7 +10,7 @@ import type { Rubric } from './rubrics';
 import { overallScore } from './scoring';
 
 /** Bump when the prompt or the output schema changes. */
-export const EVALUATION_PROMPT_VERSION = 2;
+export const EVALUATION_PROMPT_VERSION = 3;
 
 export type Exchange = { kind: 'main' | 'follow_up'; question: string; answer: string | null };
 
@@ -76,8 +76,8 @@ ${rubric.notes}
 Rules:
 - The exchange may include follow-up questions; judge the candidate's answers together, as one answer to the main question.
 - Judge content only. The answers are automatic speech transcripts, and speech recognition often mishears technical terms as similar-sounding words (for example "rest condition" for race condition, "Java stripped" for JavaScript, "beetries" for B-trees, "my school" for MySQL or NoSQL). First list them in "misheard" (what the transcript says, and the term meant), then read them as that term everywhere. Never list them as mistakes, and never lower any score, including clarity, for them, or for filler words, accent or grammar. Clarity is about how the answer is organized.
-- For each criterion, first give evidence: up to 3 short quotes copied exactly from the candidate's words. Then the rationale (one or two sentences). Then the score. If there is no evidence, use an empty list and a score of at most 1.
-- Be strict but fair for a ${level} candidate.
+- For each criterion, first give evidence: up to 3 short quotes copied exactly from the candidate's words that match the anchor you choose; vague words count too (for example "it was fine" for a vague result). Then the rationale (one or two sentences). Then the score. Use an empty list only when nothing in the answer relates to the criterion.
+- Pick the anchor whose description best matches the answer, for a ${level} candidate. 0 means the answer has nothing at all for that criterion; a vague, generic or thin attempt is 1 or 2, not 0. Give 4 only when everything in the anchor-4 description applies.
 - strengths, mistakes, missing_concepts, suggestions: short, specific, actionable sentences. missing_concepts: important points the answer did not cover.
 - example_answer: a stronger answer to the main question in first person, under 180 words, keeping the candidate's own story where possible.
 - follow_up_exercise: one concrete practice task (one or two sentences) targeting the weakest criterion.`;
@@ -107,24 +107,35 @@ Rules:
 /** The candidate's own words, for checking the evaluator's quotes. */
 export const candidateText = (exchange: Exchange[]) => exchange.map((e) => e.answer ?? '').join(' ');
 
-/** Turns the model's reply into the stored result: names, weights, anchors, checked evidence, overall score. */
+/** Safeguards (08-testing-quality.md §2): a short answer cannot score above this, whatever the model says. */
+export const SHORT_ANSWER_WORDS = 20;
+export const SHORT_ANSWER_MAX = 30;
+
+/**
+ * Turns the model's reply into the stored result: names, weights, anchors, checked evidence, overall score.
+ * A criterion with no quote found in the answer is capped at 1: a score must rest on the candidate's words.
+ */
 export function toResult(rubric: Rubric, m: ModelEvaluation, candidate: string) {
   const byKey = new Map(m.criteria.map((c) => [c.key, c]));
   const criteria = rubric.criteria.map((c) => {
     const got = byKey.get(c.key)!;
+    const evidence = got.evidence
+      .map((q) => q.trim())
+      .filter(Boolean)
+      .map((quote) => ({ quote, supported: quoteSupported(quote, candidate) }));
+    const score = evidence.some((e) => e.supported) ? got.score : Math.min(got.score, 1);
     return {
       key: c.key,
       name: c.name,
       weight: c.weight,
-      score: got.score,
+      score,
       rationale: got.rationale.trim(),
-      evidence: got.evidence
-        .map((q) => q.trim())
-        .filter(Boolean)
-        .map((quote) => ({ quote, supported: quoteSupported(quote, candidate) })),
-      anchor: c.anchors[got.score]!,
+      evidence,
+      anchor: c.anchors[score]!,
     };
   });
+  const words = candidate.split(/\s+/).filter(Boolean).length;
+  const overall = overallScore(rubric, Object.fromEntries(criteria.map((c) => [c.key, c.score])));
   const result: EvaluationResult = {
     criteria,
     strengths: m.strengths,
@@ -136,7 +147,7 @@ export function toResult(rubric: Rubric, m: ModelEvaluation, candidate: string) 
   };
   return {
     result,
-    overall: overallScore(rubric, Object.fromEntries(criteria.map((c) => [c.key, c.score]))),
+    overall: words < SHORT_ANSWER_WORDS ? Math.min(overall, SHORT_ANSWER_MAX) : overall,
     unsupported: criteria.reduce((n, c) => n + c.evidence.filter((e) => !e.supported).length, 0),
   };
 }
@@ -144,7 +155,7 @@ export function toResult(rubric: Rubric, m: ModelEvaluation, candidate: string) 
 export async function evaluate(
   llm: OllamaClient,
   input: EvaluationInput,
-  opts: { model: string; numThread?: number; timeoutMs?: number; signal?: AbortSignal },
+  opts: { model: string; numThread?: number; timeoutMs?: number; signal?: AbortSignal; seed?: number },
 ) {
   const started = performance.now();
   const reply = await structuredChat(llm, {
@@ -152,7 +163,7 @@ export async function evaluate(
     schema: modelSchema(input.rubric),
     messages: buildMessages(input),
     // Low temperature and a fixed seed: the same answer should get the same scores (checked in M9).
-    options: { temperature: 0.1, seed: 42, num_ctx: 8192, num_predict: 2000, num_thread: opts.numThread },
+    options: { temperature: 0.1, seed: opts.seed ?? 42, num_ctx: 8192, num_predict: 2000, num_thread: opts.numThread },
     keepAlive: '5m',
     timeoutMs: opts.timeoutMs ?? 600_000,
     signal: opts.signal,

@@ -1,4 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import {
+  type ModelEvaluation,
+  SHORT_ANSWER_MAX,
+  SHORT_ANSWER_WORDS,
+  toResult,
+} from '../../src/evaluation/evaluator';
 import { quoteSupported } from '../../src/evaluation/evidence';
 import { RUBRICS, rubricFor } from '../../src/evaluation/rubrics';
 import { average, overallScore } from '../../src/evaluation/scoring';
@@ -47,6 +53,40 @@ describe('overallScore', () => {
   it('averages to one decimal, null for none', () => {
     expect(average([70, 81, 64])).toBe(71.7);
     expect(average([])).toBeNull();
+  });
+});
+
+describe('toResult safeguards', () => {
+  const r = rubricFor('behavioral');
+  const reply = (score: number, evidence: string[]): ModelEvaluation => ({
+    misheard: [],
+    criteria: r.criteria.map((c) => ({ key: c.key, evidence, rationale: 'Why.', score })),
+    strengths: [],
+    mistakes: [],
+    missing_concepts: [],
+    suggestions: [],
+    example_answer: 'Better answer.',
+    follow_up_exercise: 'Practice.',
+  });
+  const long =
+    'In my internship I disagreed with a teammate about caching, so I ran a benchmark, showed the numbers, ' +
+    'and we kept one database. I learned to measure first.';
+
+  it('keeps scores backed by a quote from the answer', () => {
+    expect(toResult(r, reply(4, ['I ran a benchmark']), long).overall).toBe(100);
+  });
+
+  it('caps a criterion at 1 when no quote is found in the answer', () => {
+    const out = toResult(r, reply(4, ['I led a team of five']), long);
+    expect(out.result.criteria.map((c) => c.score)).toEqual([1, 1, 1, 1, 1]);
+    expect(out.result.criteria[0]!.anchor).toBe(r.criteria[0]!.anchors[1]);
+    expect(toResult(r, reply(3, []), long).overall).toBe(25);
+  });
+
+  it(`caps an answer under ${SHORT_ANSWER_WORDS} words at ${SHORT_ANSWER_MAX}`, () => {
+    const short = 'I ran a benchmark and we kept one database.';
+    expect(toResult(r, reply(4, ['I ran a benchmark']), short).overall).toBe(SHORT_ANSWER_MAX);
+    expect(toResult(r, reply(0, []), short).overall).toBe(0);
   });
 });
 

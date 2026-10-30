@@ -1,0 +1,48 @@
+{
+  "rubric": "coding",
+  "items": [
+    {
+      "id": "code-two-sum",
+      "interviewType": "coding",
+      "question": "How would you find two numbers in an array that add up to a target value? Talk me through your approach and its complexity.",
+      "strong": "First I would clarify: can there be negative numbers or duplicates, and do I return the indices or the values? The brute force way is to check every pair with two loops, which is O of n squared time and constant space. Better is one pass with a hash map from value to index. For each number I compute the complement, target minus the number, and check if the complement is already in the map. If yes, I return both indices. If not, I put the current number in the map and continue. Checking before inserting matters, so that a single element is not used twice, for example target eight with a single four. And duplicates work, because the earlier four is already in the map when I reach the second four. That is O of n time and O of n space. If nothing is found, I return an empty result or null. If the array were already sorted, two pointers from both ends would give O of n time with constant space.",
+      "medium": "I would use a hash map. I go through the array, and for each number I check if target minus that number is already in the map. If it is, I found the pair, otherwise I add the number to the map. This is O of n time, which is better than the brute force with two loops that is O of n squared.",
+      "weak": "I would use two for loops and check every pair of numbers until I find two that add up to the target. I think that is the fastest way because you check everything.",
+      "variants": {
+        "misheard": "I would use a hash map. I go through the array, and for each number I check if target minus that number is already in the map. If it is, I found the pair, otherwise I add the number to the map. This is oh of an time, which is better than the brute force with two loops that is oh of an squared."
+      }
+    },
+    {
+      "id": "code-brackets",
+      "interviewType": "coding",
+      "question": "How would you check whether a string of brackets is balanced?",
+      "strong": "I would use a stack. I go through the string character by character. When I see an opening bracket, round, square or curly, I push it on the stack. When I see a closing bracket, the stack must not be empty, and the top must be the matching opening bracket; if so I pop it, otherwise the string is not balanced and I can return false right away. At the end, the string is balanced only if the stack is empty, because leftover opening brackets mean something was never closed. I would keep a small map from closing to opening bracket so the matching check is one lookup. Edge cases: an empty string is balanced, a string starting with a closing bracket fails immediately, and other characters can just be skipped. It is O of n time and O of n space in the worst case, for example when everything is opening brackets.",
+      "medium": "I would use a stack. For every opening bracket I push it, and for every closing bracket I pop and check that it matches. If it does not match the string is not balanced. At the end the stack should be empty. It runs in O of n time.",
+      "weak": "I would count the opening brackets and the closing brackets, and if the numbers are the same then the string is balanced."
+    },
+    {
+      "id": "code-reverse-list",
+      "interviewType": "coding",
+      "question": "How would you reverse a singly linked list? Explain iterative and recursive options.",
+      "strong": "Iteratively I keep three pointers: previous, which starts as null, current, which starts at the head, and next. In a loop while current is not null, I save next as current dot next, point current dot next back to previous, then move previous to current and current to next. When the loop ends, previous is the new head. That is O of n time and O of one extra space. Recursively, the base case is an empty list or a single node, which I return as is. Otherwise I reverse the rest of the list starting from head dot next, then set head dot next dot next to head and head dot next to null, and return the new head from the recursive call. It is also O of n time, but it uses O of n stack space, so for a very long list it can overflow the call stack, which is why I would prefer the iterative version in production code.",
+      "medium": "Iteratively I would use pointers for the previous and current node and walk through the list, changing each next pointer to point to the previous node. At the end the previous node is the new head. Recursively you reverse the rest of the list and then attach the current node at the end. Both are O of n.",
+      "weak": "I would copy all the values into an array, reverse the array, and then create a new linked list from it. For recursive I would call the function again on the list."
+    },
+    {
+      "id": "code-longest-substring",
+      "interviewType": "coding",
+      "question": "How would you find the length of the longest substring without repeating characters?",
+      "strong": "I would use a sliding window with two indices, left and right, and a map from each character to the last position where I saw it. I move right through the string one character at a time. If the current character was seen before and its last position is inside the current window, meaning at or after left, I move left to one past that position. Then I store the current position for that character and update the best length as right minus left plus one. The check that the last position is inside the window is important; otherwise left could jump backwards, for example in a b b a. Each character is visited once, so it is O of n time, and the space is bounded by the alphabet size. For an empty string the answer is zero. A brute force that checks every substring would be O of n cubed, or n squared with a set.",
+      "medium": "I would use a sliding window. I keep a set of the characters in the current window, and move the right side forward. When I see a character that is already in the set, I move the left side forward and remove characters until the duplicate is gone. I keep track of the maximum window size. This is O of n.",
+      "weak": "I would check all the substrings one by one and for each one check if it has repeating characters, and keep the longest one."
+    },
+    {
+      "id": "code-merge-intervals",
+      "interviewType": "coding",
+      "question": "How would you merge a list of overlapping intervals?",
+      "strong": "First I sort the intervals by their start. Then I go through them with a result list. If the result is empty, or the current interval starts after the end of the last interval in the result, there is no overlap, so I append it. Otherwise they overlap, and I extend the last interval's end to the maximum of both ends; taking the maximum matters for an interval fully contained in another, like one to ten and two to three. I would ask whether touching intervals like one to two and two to three count as overlapping; usually yes, so I use start less than or equal to the last end. The sort is O of n log n and the merge pass is O of n, so O of n log n overall, with O of n space for the output. An empty input returns an empty list.",
+      "medium": "I would sort the intervals by start time. Then I go through them, and if the current interval overlaps with the last merged one, I merge them by updating the end, otherwise I add it as a new interval. Sorting makes it O of n log n.",
+      "weak": "I would compare every interval with every other interval, and if they overlap I combine them, and repeat until nothing changes."
+    }
+  ]
+}

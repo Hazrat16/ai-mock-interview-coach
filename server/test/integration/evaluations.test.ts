@@ -21,7 +21,8 @@ afterEach(async () => {
   fake = undefined;
 });
 
-const ANSWER = 'I disagreed about caching. I ran a benchmark and showed the numbers, so we kept one database.';
+const ANSWER =
+  'I disagreed with a teammate about caching. I ran a benchmark and showed the numbers, so we kept one database.';
 const KEYS = ['relevance', 'star_structure', 'personal_contribution', 'results_impact', 'reflection'];
 
 /** A behavioral evaluation as qwen would write it; one quote is invented. */

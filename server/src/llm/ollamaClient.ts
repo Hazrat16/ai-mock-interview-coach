@@ -1,4 +1,4 @@
-/** Minimal client for Ollama's /api/chat (non-streaming). */
+/** Minimal client for Ollama's /api/chat (streamed, returned whole). */
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -94,7 +94,9 @@ export class OllamaClient {
     const body = {
       model: req.model,
       messages: req.messages,
-      stream: false,
+      // Streamed so the response headers come at once: fetch gives up after 300 s without headers
+      // (undici's headersTimeout), which cut long evaluations off before our own timeout.
+      stream: true,
       format: req.format,
       options: req.options,
       keep_alive: req.keepAlive,
@@ -102,7 +104,22 @@ export class OllamaClient {
       ...(disableThinking ? { think: false } : {}),
     };
 
+    const failed = (err: unknown) => {
+      if ((err as Error).name === 'TimeoutError') {
+        return new OllamaTimeoutError(
+          `${req.model} did not answer within ${Math.round(timeoutMs / 1000)} s`,
+          'The computer may be busy or low on memory. Try again, or choose the smaller model in Settings.',
+          { cause: err },
+        );
+      }
+      if ((err as Error).name === 'AbortError') return err;
+      return new OllamaUnavailableError(`Ollama is not reachable at ${this.baseUrl}`, 'Start it with: make deps-up', {
+        cause: err,
+      });
+    };
+
     let res: Response;
+    let text: string;
     try {
       res = await fetch(`${this.baseUrl}/api/chat`, {
         method: 'POST',
@@ -110,23 +127,26 @@ export class OllamaClient {
         body: JSON.stringify(body),
         signal: AbortSignal.any(signals),
       });
+      text = await res.text();
     } catch (err) {
-      if ((err as Error).name === 'TimeoutError') {
-        throw new OllamaTimeoutError(
-          `${req.model} did not answer within ${Math.round(timeoutMs / 1000)} s`,
-          'The computer may be busy or low on memory. Try again, or choose the smaller model in Settings.',
-          { cause: err },
-        );
-      }
-      if ((err as Error).name === 'AbortError') throw err;
-      throw new OllamaUnavailableError(`Ollama is not reachable at ${this.baseUrl}`, 'Start it with: make deps-up', {
-        cause: err,
-      });
+      throw failed(err);
     }
 
-    const json = (await res.json().catch(() => ({}))) as OllamaChatResponse;
-    if (!res.ok) {
-      const message = json.error ?? `Ollama returned HTTP ${res.status}`;
+    // One JSON object per line: content pieces, then a last one with done_reason and the timings.
+    const chunks = text
+      .split('\n')
+      .filter((l) => l.trim())
+      .map((l) => {
+        try {
+          return JSON.parse(l) as OllamaChatResponse;
+        } catch {
+          return {};
+        }
+      });
+    const json = chunks.at(-1) ?? {};
+    const error = chunks.find((c) => c.error)?.error;
+    if (!res.ok || error) {
+      const message = error ?? `Ollama returned HTTP ${res.status}`;
       if (res.status === 404 && /not found/i.test(message)) {
         throw new ModelMissingError(`Model ${req.model} is not downloaded`, `Download it with: make models`);
       }
@@ -134,7 +154,7 @@ export class OllamaClient {
     }
 
     return {
-      content: json.message?.content ?? '',
+      content: chunks.map((c) => c.message?.content ?? '').join(''),
       doneReason: json.done_reason ?? 'stop',
       metrics: {
         totalMs: ms(json.total_duration),

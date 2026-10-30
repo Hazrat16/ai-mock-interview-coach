@@ -1,7 +1,8 @@
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
-export type FakeReply = { status?: number; body: unknown; delayMs?: number };
+/** `lines`: sent as a stream, one JSON object per line (as Ollama does with stream: true), instead of `body`. */
+export type FakeReply = { status?: number; body?: unknown; lines?: unknown[]; delayMs?: number };
 
 /** A successful /api/chat body with the given assistant content. */
 export function chatReply(content: string, extra: Record<string, unknown> = {}): FakeReply {
@@ -47,7 +48,12 @@ export async function startFakeOllama(
         requests.push(body);
         const reply = dynamic ? dynamic(body) : queue.length > 1 ? queue.shift()! : queue[0];
         if (!reply) return send(500, { error: 'no scripted reply' });
-        return setTimeout(() => send(reply.status ?? 200, reply.body), reply.delayMs ?? 0);
+        return setTimeout(() => {
+          if (!reply.lines) return send(reply.status ?? 200, reply.body);
+          if (res.destroyed) return;
+          res.writeHead(reply.status ?? 200, { 'content-type': 'application/x-ndjson' });
+          res.end(reply.lines.map((l) => `${JSON.stringify(l)}\n`).join(''));
+        }, reply.delayMs ?? 0);
       }
       send(404, { error: 'not found' });
     });

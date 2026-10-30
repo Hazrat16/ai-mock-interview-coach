@@ -1,0 +1,48 @@
+{
+  "rubric": "behavioral",
+  "items": [
+    {
+      "id": "beh-disagreement",
+      "interviewType": "behavioral",
+      "question": "Tell me about a time you disagreed with a teammate about a technical decision. What happened?",
+      "strong": "In my internship we were building a reporting feature, and a teammate wanted to add Elasticsearch for the search page. I thought it was too much for our data, which was about fifty thousand rows. Instead of arguing in the stand-up, I asked if we could compare both options for one afternoon. I wrote a quick Postgres version with a trigram index and measured it: searches took around forty milliseconds, which was well under our two hundred millisecond target. I showed him the numbers and also listed what we would lose, like fuzzy ranking. He agreed to start with Postgres and keep Elasticsearch as an option if the data grew. We shipped a week earlier and avoided running a new service. What I learned is that a small experiment settles a disagreement much faster than opinions, and I now suggest one whenever a discussion goes in circles.",
+      "medium": "We had a disagreement about whether to use Elasticsearch or just Postgres for search. My teammate wanted Elasticsearch, I thought Postgres was enough because the data was small. We talked about it in a meeting and looked at the pros and cons. In the end we went with Postgres and it worked fine for what we needed. I think it was a good discussion and we both learned something from it.",
+      "weak": "I usually just work it out with the team. Like once we had different opinions about a database, and we talked about it and then we found something that works for everyone, so it was fine.",
+      "variants": {
+        "misheard": "We had a disagreement about whether to use elastic search or just post press for search. My teammate wanted elastic search, I thought post press was enough because the data was small. We talked about it in a meeting and looked at the pros and cons. In the end we went with post press and it worked fine for what we needed. I think it was a good discussion and we both learned something from it."
+      }
+    },
+    {
+      "id": "beh-mistake",
+      "interviewType": "behavioral",
+      "question": "Tell me about a time you made a mistake at work or in a project. How did you handle it?",
+      "strong": "In my last project I wrote a database migration that renamed a column, and I tested it only on my local data. When it ran on staging, the old version of the API was still running and every request to the orders page failed for about ten minutes. I told my lead right away that it was my migration, rolled it back, and then split the change into two steps: first add the new column and write to both, then remove the old one after the deploy. I also added a check to our pull request template asking whether a migration is backward compatible. Since then we have not had a migration break staging. The main thing I took from it is to own the problem immediately and to fix the process, not only the bug.",
+      "medium": "I once wrote a migration that broke the staging environment because the old API was still using a column I renamed. I noticed it quickly and rolled it back. Then I changed the migration so it was safer and deployed it again. After that I try to be more careful with database changes and test them better before merging.",
+      "weak": "I think everyone makes mistakes sometimes. When something goes wrong I try to stay calm and fix it as fast as I can, and then I move on and try not to do it again."
+    },
+    {
+      "id": "beh-deadline",
+      "interviewType": "behavioral",
+      "question": "Tell me about a time you had to deliver under a tight deadline. What trade-offs did you make?",
+      "strong": "For a university capstone, our client moved the demo forward by two weeks, so we had ten days left for a booking app. I listed the features with the client and we agreed that booking and cancellation had to work, while email reminders and the admin dashboard could wait. I took the booking flow myself and cut the custom calendar component, using a plain date picker instead, which saved me about three days. I sent the client a short update every second day so there were no surprises. We delivered the demo on time with booking and cancellation working, and we added reminders in the following sprint. Looking back, agreeing on the must-haves on the first day was the decision that made it possible, and I would do that earlier next time.",
+      "medium": "We had a project where the deadline moved and we had less time. We decided to cut some features like the admin dashboard and focus on the main booking part. I worked on the booking flow. We kept the client updated and managed to finish the demo on time, and the other features came later.",
+      "weak": "Tight deadlines are normal in software. I just work longer hours and focus, and usually we make it. Sometimes you have to skip some things but in the end it works out."
+    },
+    {
+      "id": "hr-strength",
+      "interviewType": "hr",
+      "question": "What are your greatest strengths? Give an example of one in action.",
+      "strong": "I think my biggest strength is debugging problems methodically. For example, in my internship a nightly import job sometimes produced duplicate customers, and nobody had found out why for weeks. I added logging around each step, collected three failing runs, and noticed the duplicates only appeared when two files arrived within the same minute. It turned out two workers processed overlapping batches. I proposed a unique constraint plus a lock on the batch, and the duplicates stopped completely. That saved the support team about two hours a week of manual cleanup. For a backend role I think this matters a lot, because a lot of the work is finding out why a system behaves differently from what we expect.",
+      "medium": "I would say I am good at debugging. I am patient and I like to find the real cause of a problem. For example in my internship there was a bug with duplicate data and I found that it was caused by two processes running at the same time, and we fixed it. I think that is useful for a backend developer.",
+      "weak": "I am hardworking, a fast learner and a team player. I always try my best and I get along with everyone, so I think I would fit very well in any team."
+    },
+    {
+      "id": "hr-improve",
+      "interviewType": "hr",
+      "question": "What is an area you are actively working to improve?",
+      "strong": "I am working on estimating my tasks. In my internship I often said something would take two days and it took four, mostly because I did not count testing and code review. It caused a problem once when my lead planned a release around my estimate and we had to move it. Since then I break each task into steps before I estimate, I add time for tests and review explicitly, and I write down my estimate and the real time in a small spreadsheet. Over the last two months my estimates went from about double the real time to around twenty percent off. I still underestimate unfamiliar work, so for those tasks I now ask a senior colleague to sanity check my number.",
+      "medium": "I am trying to get better at estimating how long tasks take. I used to be too optimistic, and once it delayed a release. Now I break tasks into smaller parts and add time for testing, and I think my estimates are better than before.",
+      "weak": "Maybe that I am a perfectionist. Sometimes I work too much on details because I want everything to be perfect, but I think that is also a good thing in the end."
+    }
+  ]
+}

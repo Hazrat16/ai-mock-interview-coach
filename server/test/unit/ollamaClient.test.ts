@@ -25,7 +25,21 @@ describe('OllamaClient.chat', () => {
       doneReason: 'stop',
       metrics: { totalMs: 2000, loadMs: 500, promptTokens: 40, promptMs: 400, outputTokens: 30, outputMs: 1000 },
     });
-    expect(fake.requests[0]).toMatchObject({ model: 'qwen3.5:4b', stream: false, think: false });
+    expect(fake.requests[0]).toMatchObject({ model: 'qwen3.5:4b', stream: true, think: false });
+  });
+
+  it('joins a streamed reply, with the timings from the last line', async () => {
+    const last = chatReply('', { done: true }).body as Record<string, unknown>;
+    fake = await startFakeOllama({
+      chat: [{ lines: [{ message: { content: '{"a":' } }, { message: { content: ' 1}' } }, last] }],
+    });
+    const result = await ask(new OllamaClient(fake.url));
+    expect(result).toMatchObject({ content: '{"a": 1}', doneReason: 'stop', metrics: { totalMs: 2000 } });
+  });
+
+  it('reports an error sent in the middle of the stream', async () => {
+    fake = await startFakeOllama({ chat: [{ lines: [{ message: { content: '{' } }, { error: 'runner stopped' }] }] });
+    await expect(ask(new OllamaClient(fake.url))).rejects.toThrow('runner stopped');
   });
 
   it('reports a missing model with the download command', async () => {
