@@ -61,10 +61,10 @@ export function LineChart(props: {
           </text>
         </g>
       ))}
-      {points.length > 1 && <path d={path} fill="none" className="stroke-primary" strokeWidth={2} />}
+      {points.length > 1 && <path d={path} fill="none" className="stroke-brand-strong" strokeWidth={2} />}
       {points.map((p, i) => (
         <g key={i}>
-          <circle cx={x(i)} cy={y(p.value)} r={3.5} className="fill-primary" />
+          <circle cx={x(i)} cy={y(p.value)} r={3.5} className="fill-brand-strong" />
           {labelled[i] && (
             <text
               x={x(i)}

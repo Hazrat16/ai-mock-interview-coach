@@ -50,11 +50,16 @@ export function InterviewList({ items }: { items: HistoryItem[] }) {
                     {status.label}
                   </Badge>
                 )}
-                <span className="ml-auto text-sm text-muted-foreground">
-                  {new Date(i.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
-                </span>
+                <time dateTime={i.createdAt} className="ml-auto text-sm text-muted-foreground tabular-nums">
+                  {new Date(i.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                </time>
               </div>
-              <p className="text-sm text-muted-foreground">
+              {i.firstQuestion && !i.matches.length && (
+                <p className="truncate text-sm" title={i.firstQuestion}>
+                  {i.firstQuestion}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
                 {LEVEL_LABELS[i.level]} · {i.answered} of {i.totalQuestions} question
                 {i.totalQuestions === 1 ? '' : 's'} answered
               </p>

@@ -28,7 +28,7 @@ function Bars({ rows }: { rows: { label: string; count: number }[] }) {
     <ul className="space-y-2 text-sm">
       {rows.map((r) => (
         <li key={r.label} className="grid grid-cols-[10rem_1fr_2rem] items-center gap-3">
-          <span className="truncate capitalize">{r.label}</span>
+          <span className="truncate">{r.label}</span>
           <span className="h-2 rounded-full bg-muted">
             <span className="block h-2 rounded-full bg-primary" style={{ width: `${(r.count / max) * 100}%` }} />
           </span>
@@ -119,7 +119,7 @@ export function Dashboard() {
             <InterviewList items={d.recent} />
           </section>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid items-start gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Interview types</CardTitle>

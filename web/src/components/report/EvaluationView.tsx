@@ -1,4 +1,4 @@
-import { CircleAlert, Loader2, RotateCcw } from 'lucide-react';
+import { CircleAlert, Loader2, RotateCcw, Sparkles } from 'lucide-react';
 import { SCORING } from '@shared/features';
 import type { EvaluationView as Evaluation } from '@shared/schemas/evaluation';
 import { Button } from '@/components/ui/button';
@@ -54,7 +54,8 @@ export function EvaluationView({ evaluation, onRetry }: { evaluation: Evaluation
     return (
       <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
         <span className="text-destructive">
-          {SHOW_SCORES ? 'The evaluation failed' : 'Could not write the interview-ready answer'}: {e.error ?? 'unknown error'}
+          {SHOW_SCORES ? 'The evaluation failed' : 'Could not write the interview-ready answer'}:{' '}
+          {e.error ?? 'unknown error'}
         </span>
         <Button variant="outline" size="sm" onClick={onRetry}>
           <RotateCcw aria-hidden /> {SHOW_SCORES ? 'Retry evaluation' : 'Try again'}
@@ -66,10 +67,13 @@ export function EvaluationView({ evaluation, onRetry }: { evaluation: Evaluation
   // Answer-only results (written while scoring was off) have no score.
   if (e.overallScore === null || !SHOW_SCORES) {
     return (
-      <div className="space-y-1">
-        <h4 className="text-sm font-medium">Interview-ready answer</h4>
-        <p className="whitespace-pre-wrap text-sm text-muted-foreground">{r.exampleAnswer}</p>
-      </div>
+      <section className="space-y-2 rounded-lg border border-primary/15 bg-primary/[0.03] p-4">
+        <h4 className="flex items-center gap-2 text-sm font-medium">
+          <Sparkles className="size-4 text-brand-strong" aria-hidden />
+          Interview-ready answer
+        </h4>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed">{r.exampleAnswer}</p>
+      </section>
     );
   }
   return (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { type Dashboard, dashboardSchema } from '@shared/schemas/history';
+import { TAXONOMY } from '@shared/taxonomy';
 import { getJson } from './api';
 
 /** The dashboard numbers (Dashboard and Progress pages). */
@@ -18,8 +19,16 @@ export function useDashboard() {
   return { data, error };
 }
 
-/** "web_fundamentals" → "web fundamentals". */
-export const topicLabel = (tag: string) => tag.replace(/_/g, ' ');
+// The first family's label wins (software engineering's "Databases", not data's "Databases and SQL").
+const SKILL_LABELS = new Map<string, string>();
+for (const groups of Object.values(TAXONOMY))
+  for (const g of groups) for (const s of g.skills) if (!SKILL_LABELS.has(s.key)) SKILL_LABELS.set(s.key, s.label);
+
+/** The skill's name from the taxonomy ("api_design" → "API design"), else the tag in words. */
+export const topicLabel = (tag: string) => {
+  const words = tag.replace(/_/g, ' ');
+  return SKILL_LABELS.get(tag) ?? words.charAt(0).toUpperCase() + words.slice(1);
+};
 
 export const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });

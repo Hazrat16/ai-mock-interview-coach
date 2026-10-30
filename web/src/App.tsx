@@ -1,6 +1,6 @@
-import { Building2, ChartLine, FileText, History, LayoutDashboard, Mic, Settings as SettingsIcon } from 'lucide-react';
-import { BrowserRouter, NavLink, Route, Routes } from 'react-router';
-import { cn } from '@/lib/utils';
+import { useEffect } from 'react';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { Companies } from '@/pages/Companies';
 import { Dashboard } from '@/pages/Dashboard';
 import { Documents } from '@/pages/Documents';
@@ -11,21 +11,33 @@ import { Progress } from '@/pages/Progress';
 import { Report } from '@/pages/Report';
 import { Settings } from '@/pages/Settings';
 
-const nav = [
-  { to: '/', label: 'Dashboard', Icon: LayoutDashboard, page: <Dashboard /> },
-  { to: '/interview/new', label: 'New interview', Icon: Mic, page: <NewInterview /> },
-  { to: '/history', label: 'History', Icon: History, page: <HistoryPage /> },
-  { to: '/progress', label: 'Progress', Icon: ChartLine, page: <Progress /> },
-  { to: '/documents', label: 'Documents', Icon: FileText, page: <Documents /> },
-  { to: '/companies', label: 'Companies', Icon: Building2, page: <Companies /> },
-  { to: '/settings', label: 'Settings', Icon: SettingsIcon, page: <Settings /> },
+const TITLES: [RegExp, string][] = [
+  [/^\/$/, 'Dashboard'],
+  [/^\/interview\/new$/, 'New interview'],
+  [/^\/interview\/[^/]+\/report$/, 'Report'],
+  [/^\/interview\/[^/]+$/, 'Interview'],
+  [/^\/history/, 'History'],
+  [/^\/progress/, 'Progress'],
+  [/^\/documents/, 'Documents'],
+  [/^\/companies/, 'Companies'],
+  [/^\/settings/, 'Settings'],
 ];
 
-function ComingSoon({ title, milestone }: { title: string; milestone: string }) {
+/** The browser tab (and window, in app mode) names the page; each page starts at the top. */
+function PageTitle() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const title = TITLES.find(([re]) => re.test(pathname))?.[1];
+    document.title = title ? `${title} · Interview Coach` : 'Interview Coach';
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
+function NotFound() {
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Arrives in milestone {milestone}.</p>
+      <h1 className="text-2xl font-semibold">Page not found</h1>
     </div>
   );
 }
@@ -33,37 +45,21 @@ function ComingSoon({ title, milestone }: { title: string; milestone: string }) 
 export function App() {
   return (
     <BrowserRouter>
+      <PageTitle />
       <div className="flex min-h-svh">
-        <nav aria-label="Main" className="w-56 shrink-0 border-r bg-sidebar p-3">
-          <p className="px-3 py-2 font-semibold">Interview Coach</p>
-          <ul className="mt-2 space-y-1">
-            {nav.map(({ to, label, Icon }) => (
-              <li key={to}>
-                <NavLink
-                  to={to}
-                  end
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent',
-                      isActive && 'bg-sidebar-accent font-medium',
-                    )
-                  }
-                >
-                  <Icon className="size-4" aria-hidden />
-                  {label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <main className="flex-1 p-8">
+        <Sidebar />
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">
           <Routes>
-            {nav.map(({ to, page }) => (
-              <Route key={to} path={to} element={page} />
-            ))}
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/interview/new" element={<NewInterview />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/progress" element={<Progress />} />
+            <Route path="/documents" element={<Documents />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/interview/:id" element={<Interview />} />
             <Route path="/interview/:id/report" element={<Report />} />
-            <Route path="*" element={<ComingSoon title="Page not found" milestone="—" />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
       </div>

@@ -27,6 +27,8 @@ export const historyItemSchema = z.object({
   endedAt: z.string().nullable(),
   answered: z.number().int(),
   totalQuestions: z.number().int(),
+  /** The first question asked, to tell similar interviews apart; null before it was asked. */
+  firstQuestion: z.string().nullable(),
   /** With a search: where the words were found (up to 3 per interview), both with the words marked. */
   matches: z.array(z.object({ questionText: z.string(), snippet: z.string() })),
 });

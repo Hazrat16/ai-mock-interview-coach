@@ -44,6 +44,7 @@ type SessionListRow = {
   created_at: string;
   ended_at: string | null;
   answered: number;
+  first_question: string | null;
 };
 
 /** Interviews, newest first, with every filter applied. */
@@ -55,7 +56,9 @@ export function searchHistory(db: Db, query: HistoryQuery, limit = 100): History
     .prepare(
       `SELECT s.id, s.status, s.config_snapshot_json, s.plan_json, s.created_at, s.ended_at,
          (SELECT COUNT(*) FROM turns t JOIN answers a ON a.turn_id = t.id
-          WHERE t.session_id = s.id AND t.kind = 'main') AS answered
+          WHERE t.session_id = s.id AND t.kind = 'main') AS answered,
+         (SELECT question_text FROM turns t WHERE t.session_id = s.id AND t.kind = 'main'
+          ORDER BY t.seq LIMIT 1) AS first_question
        FROM sessions s
        WHERE s.status != 'planned'
          AND (?1 IS NULL OR json_extract(s.config_snapshot_json, '$.interviewType') = ?1)
@@ -85,6 +88,7 @@ export function searchHistory(db: Db, query: HistoryQuery, limit = 100): History
       endedAt: r.ended_at,
       answered: r.answered,
       totalQuestions: (JSON.parse(r.plan_json) as SessionPlan).questionIds.length,
+      firstQuestion: r.first_question,
       matches: matches?.get(r.id) ?? [],
     };
   });

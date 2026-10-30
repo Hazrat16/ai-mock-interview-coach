@@ -221,6 +221,9 @@ export function NewInterview() {
               void submit('ask');
             }}
           >
+            <h3 className="border-b pb-1 text-sm font-medium text-muted-foreground sm:col-span-2">
+              Role and questions
+            </h3>
             <div className="sm:col-span-2">
               <Field
                 id="based-on"
@@ -306,6 +309,7 @@ export function NewInterview() {
                 onChange={(v) => set('difficulty', v)}
               />
             </Field>
+            <h3 className="mt-2 border-b pb-1 text-sm font-medium text-muted-foreground sm:col-span-2">How it runs</h3>
             <Field id="count" label="Number of questions" help="1–15">
               <input
                 id="count"
@@ -329,11 +333,7 @@ export function NewInterview() {
                 <option value={2}>Up to 2</option>
               </select>
             </Field>
-            <Field
-              id="thinking"
-              label="Thinking time (seconds)"
-              help="Pause before you answer. Used in voice mode (M7)."
-            >
+            <Field id="thinking" label="Thinking time (seconds)" help="Pause before the microphone opens, to think.">
               <input
                 id="thinking"
                 type="number"
