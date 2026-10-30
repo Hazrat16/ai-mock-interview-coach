@@ -57,6 +57,30 @@ test('spoken interview: questions are read aloud, answers are heard, transcribed
       2,
     ),
   );
+  // The report: evaluations run in the background (qwen, ~2 min per question), then scores appear.
+  await page.getByRole('link', { name: 'View report' }).click();
+  await expect(page.getByText(/practice scores from a small AI model/)).toBeVisible();
+  await expect(page.getByText('How you spoke')).toBeVisible();
+  const evalStart = Date.now();
+  await expect(page.getByText(/2 of 2 questions evaluated/)).toBeVisible({ timeout: 9 * 60_000 });
+  const evalSeconds = Math.round((Date.now() - evalStart) / 1000);
+  const report = (await (await page.request.get(`/api/sessions/${sessionId}/report`)).json()) as {
+    average: number;
+    items: { evaluation: { status: string; overallScore: number; model: string; durationMs: number } }[];
+  };
+  writeFileSync(
+    'test-results/voice-interview-report.json',
+    JSON.stringify(
+      { evalSeconds, average: report.average, evaluations: report.items.map((i) => i.evaluation) },
+      null,
+      2,
+    ),
+  );
+  for (const i of report.items)
+    expect(i.evaluation).toMatchObject({ status: 'done', overallScore: expect.any(Number) });
+  // A vague answer (no example, no result) should not score well.
+  expect(report.average).toBeLessThan(60);
+
   expect(turns.length).toBeGreaterThanOrEqual(2); // each answer → the next question or the closing
   // A vague answer gets a follow-up from the interviewer (granite asks one for answers like this).
   expect(detail.turns.map((t) => t.kind)).toContain('follow_up');

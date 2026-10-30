@@ -3,6 +3,7 @@ import { BrowserRouter, NavLink, Route, Routes } from 'react-router';
 import { cn } from '@/lib/utils';
 import { Interview } from '@/pages/Interview';
 import { NewInterview } from '@/pages/NewInterview';
+import { Report } from '@/pages/Report';
 import { Settings } from '@/pages/Settings';
 
 const nav = [
@@ -54,6 +55,7 @@ export function App() {
               <Route key={to} path={to} element={page} />
             ))}
             <Route path="/interview/:id" element={<Interview />} />
+            <Route path="/interview/:id/report" element={<Report />} />
             <Route path="*" element={<ComingSoon title="Page not found" milestone="—" />} />
           </Routes>
         </main>

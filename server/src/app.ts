@@ -12,6 +12,8 @@ import { FIXED_PHRASES } from './interview/phrases';
 import { OllamaClient, OllamaError, OllamaUnavailableError } from './llm/ollamaClient';
 import { StructuredOutputError } from './llm/structured';
 import { healthRoutes } from './routes/health';
+import { JobRunner } from './evaluation/jobRunner';
+import { evaluationQueue, evaluationRoutes } from './routes/evaluations';
 import { llmRoutes } from './routes/llm';
 import { speechRoutes } from './routes/speech';
 import { sttRoutes } from './routes/stt';
@@ -94,6 +96,25 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
       void tts.prewarm(FIXED_PHRASES, (msg) => console.log(msg)); // in the background; listen does not wait
     });
   }
+  // Evaluations run in the background after an interview (not in tests: they drive a JobRunner themselves).
+  const runner = new JobRunner({
+    db,
+    llm,
+    fallbackModel: env.FALLBACK_MODEL,
+    numThread: env.LLM_NUM_THREAD,
+    log: (msg) => console.log(msg),
+  });
+  const queue = evaluationQueue(
+    db,
+    () => settings().evaluatorModel,
+    () => runner.wake(),
+  );
+  evaluationRoutes(app, db, queue);
+  if (env.NODE_ENV !== 'test') {
+    app.addHook('onListen', async () => runner.start());
+    app.addHook('onClose', async () => runner.stop());
+  }
+
   sessionRoutes(
     app,
     new InterviewEngine({
@@ -103,6 +124,16 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
       numThread: env.LLM_NUM_THREAD,
       warmUp: env.NODE_ENV !== 'test',
       log: (msg) => app.log.info(msg),
+      // After the engine's own transaction has finished.
+      onCompleted: (sessionId) =>
+        setImmediate(() => {
+          if (!db.isOpen) return; // the app is shutting down; "Evaluate this interview" in the report catches up
+          try {
+            queue.enqueue(sessionId);
+          } catch (err) {
+            app.log.error(err, 'could not queue evaluations');
+          }
+        }),
       ...options.engine,
     }),
   );

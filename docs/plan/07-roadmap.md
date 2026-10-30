@@ -125,6 +125,7 @@ Every milestone ends with this **Definition of Done**:
 **Tasks:** rubrics with anchors and weights; JSON schema; job queue (pauses during live sessions, resumes after restart); deterministic overall score; evidence verification; report with disclaimer and delivery metrics in a separate panel; retry a failed evaluation.
 **Tests:** scoring math; rubric weights sum to 1; evidence fuzzy matching; schema rejects out-of-range values; job runner survives a simulated crash; live: one real evaluation per interview type.
 **Acceptance:** R7, R8, R9 met; evaluation time per answer recorded.
+**Implemented as (M8):** one evaluation per main question *including its follow-ups* (scoring a follow-up answer alone against the full rubric would be unfair); skill-profile updates are left to M10, which reads `evaluation_scores.skill_key`. Results: [docs/benchmarks/2026-10-30-evaluation.md](../benchmarks/2026-10-30-evaluation.md).
 **Failures:** truncated JSON (raise `num_predict`); hallucinated quotes (flagged); evaluation too slow (shorter example answer, fallback model).
 
 ## M9. Scoring consistency harness

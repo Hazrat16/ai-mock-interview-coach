@@ -362,7 +362,9 @@ export function Interview() {
           <CardContent className="space-y-2 pt-6">
             <p className="text-lg">{state.closing ?? 'This interview has ended.'}</p>
             {state.closing && <VoiceControls enabled={!!speakOn} />}
-            <p className="text-sm text-muted-foreground">Answer evaluation and scores arrive in milestone M8.</p>
+            <p className="text-sm text-muted-foreground">
+              Your answers are now evaluated by the local model in the background (1–3 minutes per question).
+            </p>
           </CardContent>
         </Card>
         <section aria-labelledby="answers-heading" className="space-y-3">
@@ -371,9 +373,14 @@ export function Interview() {
           </h2>
           <Transcript log={state.log} />
         </section>
-        <Button asChild variant="outline">
-          <Link to="/interview/new">Start another interview</Link>
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild>
+            <Link to={`/interview/${id}/report`}>View report</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/interview/new">Start another interview</Link>
+          </Button>
+        </div>
       </div>
     );
   }

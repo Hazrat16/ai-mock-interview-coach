@@ -44,6 +44,8 @@ export type EngineDeps = {
   /** Load the interviewer model when a session is created (off in tests). */
   warmUp?: boolean;
   log?: (msg: string) => void;
+  /** Called when a session ends with at least one answer (queues its evaluation). */
+  onCompleted?: (sessionId: string) => void;
 };
 
 type CreateInput = {
@@ -210,6 +212,7 @@ export class InterviewEngine {
     if (OPEN.includes(session.status)) {
       const answered = getTurns(this.db, sessionId).some((t) => t.answer);
       setStatus(this.db, sessionId, answered ? 'completed' : 'abandoned');
+      if (answered) this.deps.onCompleted?.(sessionId);
     }
     return this.detail(sessionId);
   }
@@ -274,6 +277,7 @@ export class InterviewEngine {
     const total = session.plan.questionIds.length;
     if (asked >= total) {
       setStatus(this.db, session.id, 'completed');
+      this.deps.onCompleted?.(session.id);
       return { lead: '', next: null, closing: CLOSING };
     }
     const question = getQuestion(this.db, session.plan.questionIds[asked]!);

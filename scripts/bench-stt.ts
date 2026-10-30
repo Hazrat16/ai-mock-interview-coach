@@ -180,7 +180,9 @@ if (promptRows.length) {
   for (const r of promptRows) console.log(r);
 }
 if (own.length) {
-  console.log(`\nYour recordings: sound quality (to compare setups; Piper's voice has ~12% below 300 Hz and ~9.5% above 2 kHz)\n`);
+  console.log(
+    `\nYour recordings: sound quality (to compare setups; Piper's voice has ~12% below 300 Hz and ~9.5% above 2 kHz)\n`,
+  );
   console.log('| Recording | Setup | Level dB | SNR dB | Below 300 Hz | Above 2 kHz |');
   console.log('|---|---|---|---|---|---|');
   for (const c of own) {

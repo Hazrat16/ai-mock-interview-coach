@@ -11,7 +11,7 @@ export const FAKE_MIC_WAV = join(import.meta.dirname, 'e2e/.cache/answer.wav');
 
 export default defineConfig({
   testDir: 'e2e',
-  timeout: 6 * 60_000, // a spoken interview with real models on a laptop CPU
+  timeout: 12 * 60_000, // a spoken interview plus its evaluation with real models on a laptop CPU
   workers: 1,
   reporter: [['list']],
   globalSetup: './e2e/global-setup.ts',
