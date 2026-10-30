@@ -81,6 +81,11 @@ describe('interview turn machine', () => {
     });
   });
 
+  it('submits a spoken transcript without touching the typed draft', () => {
+    const s = reduce(answering(), { type: 'submitted', text: ' I would add an index. ' });
+    expect(s).toMatchObject({ phase: 'deciding', pending: 'I would add an index.' });
+  });
+
   it('keeps the typed answer when submitting fails', () => {
     let s = reduce(reduce(answering(), { type: 'draft', text: 'my answer' }), { type: 'submitted' });
     s = reduce(s, { type: 'failed', message: 'Server not responding' });

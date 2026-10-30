@@ -24,9 +24,10 @@ I am not a lawyer; this is a practical audit, not legal advice.
 | Piper voices used: `en_US-ljspeech-medium` (default), `-high`, `en_US-joe-medium`, `en_US-norman-medium` | MODEL_CARD datasets: LJ Speech public domain, OHF voice-datasets CC0, LibriVox public domain. Voice repo (rhasspy/piper-voices) MIT | **V (M5, [record](../benchmarks/2026-10-29-tts.md))** | No | No | No | No (download once at a pinned commit, SHA-256 checked) |
 | Piper voices rejected | `ryan` CC BY-NC-SA 4.0, `hfc_male`/`hfc_female` CC BY-NC-SA 4.0, `northern_english_male` CC BY-SA 4.0 (share-alike) | V (M5) | – | – | – | **Not used** |
 | Kokoro-82M (later option) | Apache-2.0 weights | V | No | No | No | No |
-| Silero VAD model | MIT | K | No | No | No | No |
-| `@ricky0123/vad-web` | ISC | K (repo page did not show the name) | No | No | No | **Examples load from jsDelivr CDN.** We self-host all assets (V: options exist) |
-| onnxruntime-web | MIT | K | No | No | No | Same CDN caveat; self-hosted |
+| Silero VAD model (v5, shipped inside vad-web) | MIT | **V (M7, GitHub snakers4/silero-vad)** | No | No | No | No |
+| `@ricky0123/vad-web` 0.0.31 | ISC (declared in its package.json; no license file in the package; GitHub shows NOASSERTION) | **V (M7, npm)** | No | No | No | Its examples load from jsDelivr. **We serve all its files from the app server (`/vad/`), checked by the e2e test: every request goes to 127.0.0.1** |
+| onnxruntime-web 1.31.1 | MIT | **V (M7, npm)** | No | No | No | Same CDN caveat; served from `/vad/` |
+| `@playwright/test` 1.64.1 (tests only) | Apache-2.0 | V (M7, npm) | No | No | No | No (uses the installed Google Chrome; no browser download) |
 | Node.js | MIT | K | No | No | No | No |
 | better-sqlite3 / SQLite | MIT / public domain | K | No | No | No | No |
 | Fastify, Zod, pino | MIT | K | No | No | No | No |

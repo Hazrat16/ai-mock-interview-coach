@@ -3,7 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { type SttResult, sttResultSchema, type SttSampleList, sttSampleListSchema } from '@shared/schemas/stt';
 import { wordErrorRate } from '@shared/text/wer';
-import { listMicrophones, type MicOptions, MicRecorder, type Recording } from '@/audio/recorder';
+import {
+  listMicrophones,
+  loadMicOptions,
+  type MicOptions,
+  MicRecorder,
+  type Recording,
+  saveMicOptions,
+} from '@/audio/recorder';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { deleteJson, getJson, postWav } from '@/lib/api';
@@ -19,17 +26,6 @@ const SENTENCES = [
 ];
 
 const MAX_SECONDS = 60;
-const MIC_KEY = 'interview-coach:mic';
-
-/** The microphone choice is per browser (device ids differ between browsers), so it lives in localStorage. */
-function loadMic(): MicOptions {
-  try {
-    return { processing: true, ...(JSON.parse(localStorage.getItem(MIC_KEY) ?? '{}') as MicOptions) };
-  } catch {
-    return { processing: true };
-  }
-}
-
 type Phase =
   | { name: 'idle' }
   | { name: 'recording'; seconds: number; level: number }
@@ -42,15 +38,11 @@ export function SpeechCheckCard() {
   const [phase, setPhase] = useState<Phase>({ name: 'idle' });
   const [samples, setSamples] = useState<SttSampleList>();
   const recorder = useRef<MicRecorder>(undefined);
-  const [mic, setMic] = useState<MicOptions>(loadMic);
+  const [mic, setMic] = useState<MicOptions>(loadMicOptions);
   const [mics, setMics] = useState<{ deviceId: string; label: string }[]>([]);
   const chooseMic = (next: MicOptions) => {
     setMic(next);
-    try {
-      localStorage.setItem(MIC_KEY, JSON.stringify(next));
-    } catch {
-      // storage unavailable: the choice lasts until the page is closed
-    }
+    saveMicOptions(next);
   };
   const sentence = SENTENCES[index % SENTENCES.length]!;
 
@@ -174,8 +166,7 @@ export function SpeechCheckCard() {
               disabled={phase.name === 'recording'}
               onChange={(e) => chooseMic({ ...mic, processing: e.target.checked })}
             />
-            Browser voice processing (echo cancellation, noise suppression, auto gain). Keep on with laptop
-            speakers.
+            Browser voice processing (echo cancellation, noise suppression, auto gain). Keep on with laptop speakers.
           </label>
         </div>
 

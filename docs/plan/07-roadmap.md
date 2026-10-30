@@ -117,7 +117,8 @@ Every milestone ends with this **Definition of Done**:
 **Tests:** turnMachine for every control in every state; Playwright e2e with a fake mic WAV covering an answer, follow-up, and next question; an e2e test asserting that **every request goes to 127.0.0.1**.
 **Manual (with the laptop speakers, D3):** a 3-question interview; deny the permission once; unplug the headset mid-answer; stop whisper mid-session.
 **Acceptance:** R3, R4, R5 met; end-to-end turn latency measured and recorded.
-**Failures:** VAD assets 404 (copy script); the VAD cuts sentences (raise `redemptionMs`); TTS heard by the mic (mic closed during TTS, short pause after TTS ends, echo cancellation on); AudioContext suspended until user gesture.
+**Implemented as (M7):** the VAD files are served by the app server from `node_modules` at `/vad/` (Vite proxies it in development, because Vite refuses module imports from `public/`), not copied by a script. The e2e test runs in the installed Google Chrome with its fake-microphone flag.
+**Failures:** VAD assets 404 (check `/vad/` route); the VAD cuts sentences (raise `redemptionMs`); TTS heard by the mic (mic closed during TTS, short pause after TTS ends, echo cancellation on); AudioContext suspended until user gesture.
 
 ## M8. Evaluation and reports (**MVP**)
 **Files:** `evaluation/rubrics/*.ts`, `evaluator.ts`, `scoring.ts`, `evidence.ts`, `jobRunner.ts`, `llm/prompts/evaluator.ts`, `shared/schemas/evaluation.ts`, `routes/evaluations.ts`, `pages/Report.tsx`, `components/report/*`.

@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto';
 import type {
+  AnswerRequest,
   CreateSessionResponse,
   InterviewConfig,
   SessionDetail,
@@ -26,7 +27,7 @@ import {
 } from '../db/repos/sessions';
 import { conflict, notFound } from '../errors';
 import type { OllamaClient } from '../llm/ollamaClient';
-import { acceptFollowUp, decide, warmUp } from './followUp';
+import { chooseFollowUp, decide, warmUp } from './followUp';
 import { generateQuestions } from './generator';
 import { planQuestions } from './planner';
 import { ACKS, CLOSING, intro, lead, pick } from './phrases';
@@ -135,11 +136,7 @@ export class InterviewEngine {
     return this.detail(sessionId);
   }
 
-  async answer(
-    sessionId: string,
-    turnId: string,
-    body: { transcript: string; inputMethod: 'voice' | 'typed_fallback'; durationMs?: number },
-  ): Promise<TurnResult> {
+  async answer(sessionId: string, turnId: string, body: AnswerRequest): Promise<TurnResult> {
     const session = this.session(sessionId);
     const turns = getTurns(this.db, sessionId);
     const turn = this.openTurn(session, turns, turnId);
@@ -179,7 +176,7 @@ export class InterviewEngine {
       this.deps.log?.(error ? `follow-up decision failed after ${ms} ms: ${error}` : `follow-up decision in ${ms} ms`);
       if (decision) {
         updateTurnInsight(this.db, main.id, decision.summary, decision.quality_signal);
-        followUp = acceptFollowUp(decision, [main.questionText, ...thread.map((t) => t.questionText)]);
+        followUp = chooseFollowUp(decision, [main.questionText, ...thread.map((t) => t.questionText)]);
       }
     }
 

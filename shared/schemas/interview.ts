@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { deliverySchema } from '../delivery';
 
 export const LEVELS = ['intern', 'junior', 'mid', 'senior', 'lead'] as const;
 export const INTERVIEW_TYPES = ['hr', 'behavioral', 'technical', 'coding', 'system_design'] as const;
@@ -51,7 +52,10 @@ export const answerRequestSchema = z.object({
   transcript: z.string().trim().min(1).max(20_000),
   inputMethod: z.enum(['voice', 'typed_fallback']).default('typed_fallback'),
   durationMs: z.number().int().min(0).optional(),
+  /** Spoken answers only (M7). */
+  voice: z.object({ sttModel: z.string().max(100), delivery: deliverySchema }).optional(),
 });
+export type AnswerRequest = z.infer<typeof answerRequestSchema>;
 
 /** What the interviewer says and asks next. `next` is null when the interview is over. */
 export const turnResultSchema = z.object({

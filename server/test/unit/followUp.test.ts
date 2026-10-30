@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { InterviewConfig } from '@shared/schemas/interview';
-import { acceptFollowUp, buildMessages, type Decision, similarity } from '../../src/interview/followUp';
+import {
+  acceptFollowUp,
+  buildMessages,
+  chooseFollowUp,
+  type Decision,
+  decisionSchema,
+  similarity,
+} from '../../src/interview/followUp';
+import { PROBES } from '../../src/interview/phrases';
 
 const main = 'Tell me about a time you disagreed with a teammate about a technical decision. What happened?';
 const decision = (follow_up: string | null, action: Decision['action'] = 'follow_up'): Decision => ({
@@ -78,5 +86,33 @@ describe('buildMessages', () => {
     expect(user!.content).toContain(`Main question: ${main}`);
     expect(user!.content).toContain('[...]');
     expect(user!.content.length).toBeLessThan(3200);
+  });
+});
+
+describe('chooseFollowUp', () => {
+  const rephrased = 'Can you give a specific example of when you disagreed with a teammate about a technical decision?';
+  const weak = (follow_up: string | null): Decision => ({ ...decision(follow_up), quality_signal: 'weak' });
+
+  it("uses the model's own follow-up when it is new", () => {
+    const own = 'What did you do when your teammate still disagreed after the benchmark?';
+    expect(chooseFollowUp(weak(own), [main])).toBe(own);
+  });
+
+  it('asks a fixed probe for a weak answer when the model only rephrased the main question', () => {
+    expect(chooseFollowUp(weak(rephrased), [main])).toBe(PROBES[0]);
+    // The second probe if the first was already asked on this question; none after that.
+    expect(chooseFollowUp(weak(rephrased), [main, PROBES[0]!])).toBe(PROBES[1]);
+    expect(chooseFollowUp(weak(rephrased), [main, ...PROBES])).toBeNull();
+  });
+
+  it('does not probe when the answer was not weak, or the model chose "next"', () => {
+    expect(chooseFollowUp(decision(rephrased), [main])).toBeNull(); // quality ok
+    expect(chooseFollowUp({ ...weak(null), action: 'next' }, [main])).toBeNull();
+  });
+});
+
+describe('decision schema', () => {
+  it('asks for the judgment before the decision (field order is generation order)', () => {
+    expect(Object.keys(decisionSchema.shape)).toEqual(['summary', 'quality_signal', 'action', 'follow_up']);
   });
 });

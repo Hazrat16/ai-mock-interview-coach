@@ -36,11 +36,21 @@ export const CLOSING =
 
 export const LAST_LEAD = 'And the last question.';
 
+/**
+ * Asked when the model judged the answer weak and wanted a follow-up, but its wording only repeated the main
+ * question ("Can you give a specific example of <main question>?"). Neutral, and works for any question type.
+ */
+export const PROBES = [
+  'Could you walk me through one specific example, and what you did yourself?',
+  'Can you make that more concrete? Pick one real situation and tell me what happened.',
+];
+
 /** Every fixed sentence the interviewer says, for the text-to-speech cache. */
 export const FIXED_PHRASES = [
   ...ACKS,
   ...LEADS,
   LAST_LEAD,
+  ...PROBES,
   "That's the end of the interview.",
   'Thank you for your time.',
 ];

@@ -16,7 +16,8 @@ export default defineConfig(({ mode }) => {
       host: '127.0.0.1',
       port: 5173,
       strictPort: true,
-      proxy: { '/api': `http://127.0.0.1:${env.PORT ?? 4317}` },
+      // /vad: speech-detection files, served by the app server (Vite refuses module imports from public/).
+      proxy: { '/api': `http://127.0.0.1:${env.PORT ?? 4317}`, '/vad': `http://127.0.0.1:${env.PORT ?? 4317}` },
     },
     build: { outDir: path('./dist/web'), emptyOutDir: true },
   };

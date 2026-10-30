@@ -1,5 +1,6 @@
 // Interview screen state as a pure reducer, so every transition can be unit-tested.
-// Text mode (M4); M7 adds audio states (speaking, listening, transcribing) on top of the same flow.
+// Session-level flow, shared by typed and spoken answers. The spoken answer's own steps (speaking, listening,
+// transcribing, ...) live in voiceMachine.ts; it hands the final transcript to 'submitted'.
 import type { SessionDetail, TurnResult, TurnView } from '@shared/schemas/interview';
 
 export type LogEntry = { turn: TurnView; answer: string | null };
@@ -32,7 +33,8 @@ export type InterviewEvent =
   | { type: 'loaded'; detail: SessionDetail }
   | { type: 'started'; detail: SessionDetail }
   | { type: 'draft'; text: string }
-  | { type: 'submitted' }
+  /** `text`: a spoken answer's transcript; without it the typed draft is submitted. */
+  | { type: 'submitted'; text?: string }
   | { type: 'skipped' }
   | { type: 'result'; result: TurnResult }
   | { type: 'failed'; message: string }
@@ -65,16 +67,16 @@ export function reduce(state: InterviewState, event: InterviewEvent): InterviewS
     case 'submitted':
     case 'skipped': {
       if (state.phase !== 'answering') return state;
-      if (event.type === 'submitted' && !state.draft.trim())
-        return { ...state, error: 'Type an answer first, or skip.' };
-      const { detail, current, speech, log, draft } = state;
+      const answer = event.type === 'submitted' ? (event.text ?? state.draft).trim() : '';
+      if (event.type === 'submitted' && !answer) return { ...state, error: 'Type an answer first, or skip.' };
+      const { detail, current, speech, log } = state;
       return {
         phase: 'deciding',
         detail,
         current,
         speech,
         log,
-        pending: event.type === 'submitted' ? draft.trim() : null,
+        pending: event.type === 'submitted' ? answer : null,
       };
     }
     case 'result': {

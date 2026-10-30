@@ -2,7 +2,7 @@
 
 A personal, audio-only mock interview app that runs entirely on this computer. It uses Ollama for the LLM, Piper for text-to-speech, and whisper.cpp for speech-to-text. There are no cloud services and no API keys.
 
-Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M6 (local speech-to-text) done**; next M7.
+Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M7 (spoken interview: live microphone and turn-taking)**.
 
 ## How it runs
 
@@ -21,7 +21,7 @@ make doctor     # check the machine
 make dev        # open http://127.0.0.1:5173  (Ctrl+C stops all)
 ```
 
-Other commands: `make start` (production build on http://127.0.0.1:4317), `make check` (lint, type-check, tests), `make llm-smoke` (quick LLM check), `make bench` (LLM benchmark, ~25 min), `make bench-tts` (voice speed), `make bench-stt` (speech recognition accuracy), `make help`.
+Other commands: `make start` (production build on http://127.0.0.1:4317), `make check` (lint, type-check, tests), `make llm-smoke` (quick LLM check), `make bench` (LLM benchmark, ~25 min), `make bench-tts` (voice speed), `make bench-stt` (speech recognition accuracy), `make e2e` (a full spoken interview in Chrome with a fake microphone), `make help`.
 
 ## Where things live
 

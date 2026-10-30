@@ -1,4 +1,4 @@
-import type { InterviewConfig } from '@shared/schemas/interview';
+import type { AnswerRequest, InterviewConfig } from '@shared/schemas/interview';
 import type { Db } from '../connection';
 import { newId, nowIso } from '../ids';
 
@@ -200,15 +200,25 @@ export function updateTurnInsight(db: Db, turnId: string, summary: string, quali
   db.prepare('UPDATE turns SET summary = ?, quality_signal = ? WHERE id = ?').run(summary, quality, turnId);
 }
 
-export function insertAnswer(
-  db: Db,
-  a: { turnId: string; transcript: string; inputMethod: 'voice' | 'typed_fallback'; durationMs?: number },
-): string {
+export function insertAnswer(db: Db, a: AnswerRequest & { turnId: string }): string {
   const id = newId();
   const wordCount = a.transcript.split(/\s+/).filter(Boolean).length;
+  const delivery = a.voice?.delivery;
   db.prepare(
-    `INSERT INTO answers (id, turn_id, transcript, input_method, duration_ms, word_count, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).run(id, a.turnId, a.transcript, a.inputMethod, a.durationMs ?? null, wordCount, nowIso());
+    `INSERT INTO answers (id, turn_id, transcript, input_method, stt_model, duration_ms, speaking_ms, word_count,
+       delivery_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    a.turnId,
+    a.transcript,
+    a.inputMethod,
+    a.voice?.sttModel ?? null,
+    a.durationMs ?? delivery?.answerMs ?? null,
+    delivery?.speakingMs ?? null,
+    wordCount,
+    delivery ? JSON.stringify(delivery) : null,
+    nowIso(),
+  );
   return id;
 }

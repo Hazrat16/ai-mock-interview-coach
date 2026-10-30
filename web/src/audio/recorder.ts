@@ -16,6 +16,25 @@ export type MicOptions = {
   processing?: boolean;
 };
 
+const MIC_KEY = 'interview-coach:mic';
+
+/** The microphone choice is per browser (device ids differ between browsers), so it lives in localStorage. */
+export function loadMicOptions(): MicOptions {
+  try {
+    return { processing: true, ...(JSON.parse(localStorage.getItem(MIC_KEY) ?? '{}') as MicOptions) };
+  } catch {
+    return { processing: true };
+  }
+}
+
+export function saveMicOptions(opts: MicOptions) {
+  try {
+    localStorage.setItem(MIC_KEY, JSON.stringify(opts));
+  } catch {
+    // storage unavailable: the choice lasts until the page is closed
+  }
+}
+
 /** Microphones the browser can use. Labels are empty until microphone permission was granted once. */
 export async function listMicrophones(): Promise<{ deviceId: string; label: string }[]> {
   const devices = await navigator.mediaDevices.enumerateDevices();

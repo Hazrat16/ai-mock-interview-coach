@@ -101,6 +101,51 @@ describe('interview session', () => {
     });
   });
 
+  it('stores a spoken answer with its speech-to-text model and delivery metrics', async () => {
+    await setup([decision({ action: 'next' })]);
+    const s = await startNew();
+    const delivery = {
+      answerMs: 21000,
+      speakingMs: 17500,
+      wordsPerMinute: 132,
+      longPauses: 1,
+      fillerWords: 2,
+      responseLatencyMs: 4200,
+      segments: 3,
+    };
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/sessions/${s.id}/turns/${s.current!.id}/answer`,
+      payload: {
+        transcript: 'I compared both designs with a quick prototype.',
+        inputMethod: 'voice',
+        voice: { sttModel: 'ggml-base.en.bin', delivery },
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const row = db
+      .prepare('SELECT input_method, stt_model, duration_ms, speaking_ms, delivery_json FROM answers')
+      .get() as Record<string, unknown>;
+    expect(row).toMatchObject({
+      input_method: 'voice',
+      stt_model: 'ggml-base.en.bin',
+      duration_ms: 21000,
+      speaking_ms: 17500,
+    });
+    expect(JSON.parse(row.delivery_json as string)).toEqual(delivery);
+  });
+
+  it('rejects malformed delivery metrics', async () => {
+    await setup([decision({ action: 'next' })]);
+    const s = await startNew();
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/sessions/${s.id}/turns/${s.current!.id}/answer`,
+      payload: { transcript: 'Hi.', inputMethod: 'voice', voice: { sttModel: 'x', delivery: { wordsPerMinute: -1 } } },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('moves on when the model repeats the main question as a "follow-up"', async () => {
     // The fake model "follows up" with the main question itself, wrapped in other words.
     await setup((body) => {

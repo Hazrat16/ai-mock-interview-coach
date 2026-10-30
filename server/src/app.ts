@@ -15,6 +15,7 @@ import { healthRoutes } from './routes/health';
 import { llmRoutes } from './routes/llm';
 import { speechRoutes } from './routes/speech';
 import { sttRoutes } from './routes/stt';
+import { vadAssetRoutes } from './routes/vadAssets';
 import { sessionRoutes } from './routes/sessions';
 import { settingsRoutes } from './routes/settings';
 import { PhraseCache } from './speech/phraseCache';
@@ -85,6 +86,7 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
   settingsRoutes(app, env, db);
   llmRoutes(app, env, llm);
   speechRoutes(app, tts, piper, settings);
+  vadAssetRoutes(app);
   sttRoutes(app, whisper, env.WHISPER_MODEL, new SampleStore(join(env.DATA_DIR, 'stt-samples')));
   if (env.NODE_ENV !== 'test') {
     // Fixed phrases get cached audio right away, so the first interview never waits for them.

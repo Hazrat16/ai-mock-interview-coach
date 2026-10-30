@@ -4,10 +4,10 @@ COMPOSE := docker compose
 export HOST_UID := $(shell id -u)
 .DEFAULT_GOAL := help
 
-.PHONY: help setup models voices dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench bench-tts stt-models bench-stt
+.PHONY: help setup models voices dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench bench-tts stt-models bench-stt e2e
 
 help: ## List commands
-	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  make %-10s %s\n",$$1,$$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  make %-10s %s\n",$$1,$$2}'
 
 setup: ## Create .env and folders, install npm packages, pull/build images (safe to re-run)
 	@bash scripts/init.sh
@@ -71,3 +71,7 @@ bench-tts: deps-up ## Text-to-speech speed per voice (first-sentence latency, re
 
 bench-stt: deps-up ## Speech-to-text accuracy (WER) and speed per Whisper model (~10 min)
 	npx tsx scripts/bench-stt.ts $(ARGS)
+
+e2e: deps-up ## Full spoken interview in Chrome with a fake microphone (real models, ~2 min, own test database)
+	mkdir -p test-results
+	npx playwright test $(ARGS)

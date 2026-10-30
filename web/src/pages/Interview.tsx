@@ -1,13 +1,18 @@
-import { RotateCcw, Square, Volume2 } from 'lucide-react';
-import { useCallback, useEffect, useReducer, useState } from 'react';
+import { Keyboard, Mic, RotateCcw, Square, Volume2 } from 'lucide-react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { type SessionDetail, sessionDetailSchema, turnResultSchema } from '@shared/schemas/interview';
-import { settingsSchema } from '@shared/schemas/settings';
+import { type Settings, settingsSchema } from '@shared/schemas/settings';
 import { player } from '@/audio/player';
+import { loadMicOptions } from '@/audio/recorder';
+import type { AnyVoiceInput, VoiceInputEvents } from '@/audio/vad';
 import { usePlayerState } from '@/audio/useSpeech';
+import { VoiceAnswer, type VoiceSubmit } from '@/components/interview/VoiceAnswer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { markReplyAudio, markResult, markSubmitted } from '@/interview/latency';
 import { type InterviewState, type LogEntry, reduce } from '@/interview/turnMachine';
+import { DEFAULT_VOICE_CONFIG } from '@/interview/voiceMachine';
 import { getJson, sendJson } from '@/lib/api';
 import { INTERVIEW_TYPE_LABELS, LEVEL_LABELS } from '@/lib/labels';
 import { fieldClass } from '@/lib/styles';
@@ -97,7 +102,26 @@ function VoiceControls({ enabled }: { enabled: boolean }) {
   );
 }
 
-function Header({ detail }: { detail: SessionDetail }) {
+type AnswerMode = 'voice' | 'text';
+const MODE_KEY = 'interview-coach:answer-mode';
+
+function loadMode(): AnswerMode {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'text' ? 'text' : 'voice';
+  } catch {
+    return 'voice';
+  }
+}
+
+function saveMode(mode: AnswerMode) {
+  try {
+    localStorage.setItem(MODE_KEY, mode);
+  } catch {
+    // storage unavailable: voice stays the default
+  }
+}
+
+function Header({ detail, mode }: { detail: SessionDetail; mode: AnswerMode }) {
   const c = detail.config;
   return (
     <div>
@@ -107,7 +131,7 @@ function Header({ detail }: { detail: SessionDetail }) {
       <p className="text-sm text-muted-foreground">
         {LEVEL_LABELS[c.level]} level ·{' '}
         {detail.turns.length === 0 ? c.questionCount : (detail.current?.totalQuestions ?? c.questionCount)} questions ·
-        typed answers
+        {mode === 'voice' ? 'spoken answers' : 'typed answers'}
       </p>
     </div>
   );
@@ -119,7 +143,18 @@ export function Interview() {
   const [showTranscript, setShowTranscript] = useState(true);
   // undefined until settings load, so nothing is spoken before we know whether speech is on
   const [speakOn, setSpeakOn] = useState<boolean>();
+  const [settings, setSettings] = useState<Settings>();
   const elapsed = useElapsedSeconds(state.phase === 'deciding');
+
+  // Spoken answers: the microphone with speech detection is created after a click (permission prompt).
+  const [mode, setMode] = useState<AnswerMode>(loadMode);
+  const [voice, setVoice] = useState<{ input: AnyVoiceInput; note?: string }>();
+  const [enabling, setEnabling] = useState(false);
+  const [micError, setMicError] = useState<string>();
+  /** A turn answered by typing although the interview is spoken ("type instead", or after a failure). */
+  const [typedTurn, setTypedTurn] = useState<string>();
+  const eventsRef = useRef<VoiceInputEvents | null>(null);
+  const inputRef = useRef<AnyVoiceInput | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
@@ -131,6 +166,7 @@ export function Interview() {
         if (!active) return;
         setShowTranscript(s.showTranscript);
         setSpeakOn(s.speakInterviewer);
+        setSettings(s);
       })
       .catch(() => active && setSpeakOn(true));
     return () => {
@@ -138,13 +174,66 @@ export function Interview() {
     };
   }, [id]);
 
+  const inTurn = state.phase === 'answering' || state.phase === 'deciding';
+  // In a spoken turn, VoiceAnswer speaks the question itself (it has to know when the speech ends).
+  const voiceTurn = inTurn && mode === 'voice' && !!voice && state.current.id !== typedTurn;
+
   const utterance = utteranceOf(state);
   const utteranceKey = utterance?.key;
-  const utteranceText = utterance?.text;
+  const utteranceText = voiceTurn ? undefined : utterance?.text;
   useEffect(() => {
-    if (speakOn && utteranceText) void player.speak(utteranceText);
+    // markReplyAudio: the closing after a spoken last answer completes that turn's latency measurement.
+    if (speakOn && utteranceText) void player.speak(utteranceText, { onFirstAudio: () => markReplyAudio() });
   }, [speakOn, utteranceKey, utteranceText]);
-  useEffect(() => () => player.stop(), []); // leaving the page silences the interviewer
+  useEffect(
+    () => () => {
+      player.stop(); // leaving the page silences the interviewer
+      void inputRef.current?.destroy(); // and releases the microphone
+    },
+    [],
+  );
+
+  /** Creates the speech detector and asks for the microphone, right after the user's click. */
+  const enableVoice = useCallback(async () => {
+    void player.unlock();
+    setEnabling(true);
+    setMicError(undefined);
+    try {
+      let note: string | undefined;
+      if (!inputRef.current) {
+        // Events go to whichever turn is on screen (VoiceAnswer registers itself in eventsRef).
+        const forward: VoiceInputEvents = {
+          onSpeechStart: (t) => eventsRef.current?.onSpeechStart(t),
+          onSegment: (a, s0, s1) => eventsRef.current?.onSegment(a, s0, s1),
+          onMisfire: () => eventsRef.current?.onMisfire(),
+          onMicLost: () => eventsRef.current?.onMicLost(),
+          onLevel: (v) => eventsRef.current?.onLevel?.(v),
+        };
+        // Loaded on first use: the detector and its runtime are ~470 KB of JavaScript.
+        const { createVoiceInput } = await import('@/audio/vad');
+        const created = await createVoiceInput(forward, loadMicOptions());
+        inputRef.current = created.input;
+        note = created.fallbackReason;
+      }
+      const input = inputRef.current;
+      await input.open(); // the permission prompt appears now
+      await input.close(); // closed again until the first question has been asked
+      setVoice({ input, note });
+      setMode('voice');
+      saveMode('voice');
+      return true;
+    } catch (e) {
+      setMicError((e as Error).message);
+      return false;
+    } finally {
+      setEnabling(false);
+    }
+  }, []);
+
+  const chooseTyping = useCallback(() => {
+    setMode('text');
+    saveMode('text');
+  }, []);
 
   const start = useCallback(async () => {
     void player.unlock(); // inside the click, so the browser allows sound for the rest of the interview
@@ -159,16 +248,29 @@ export function Interview() {
   }, [id]);
 
   const respond = useCallback(
-    async (action: 'answer' | 'skip', turnId: string, transcript?: string) => {
-      dispatch({ type: action === 'answer' ? 'submitted' : 'skipped' });
+    async (action: 'answer' | 'skip', turnId: string, transcript?: string, spoken?: VoiceSubmit) => {
+      dispatch(action === 'answer' ? { type: 'submitted', text: spoken?.transcript } : { type: 'skipped' });
       if (action === 'answer' && !transcript?.trim()) return;
       player.stop();
       void player.unlock();
       try {
-        const body = action === 'answer' ? { transcript, inputMethod: 'typed_fallback' } : {};
+        const body =
+          action === 'skip'
+            ? {}
+            : spoken
+              ? {
+                  transcript,
+                  inputMethod: 'voice',
+                  voice: spoken.delivery ? { sttModel: spoken.sttModel, delivery: spoken.delivery } : undefined,
+                }
+              : { transcript, inputMethod: 'typed_fallback' };
+        markSubmitted();
         const result = await sendJson('POST', `/api/sessions/${id}/turns/${turnId}/${action}`, body, turnResultSchema);
+        markResult();
         dispatch({ type: 'result', result });
       } catch (e) {
+        // A spoken answer is not lost: it comes back as editable text with the error.
+        if (spoken) setTypedTurn(turnId);
         dispatch({ type: 'failed', message: (e as Error).message });
       }
     },
@@ -178,6 +280,7 @@ export function Interview() {
   const end = useCallback(async () => {
     if (!window.confirm('End the interview now? Your answers so far are kept.')) return;
     player.stop();
+    void inputRef.current?.close();
     try {
       dispatch({ type: 'ended', detail: await sendJson('POST', `/api/sessions/${id}/end`, {}, sessionDetailSchema) });
     } catch (e) {
@@ -202,13 +305,49 @@ export function Interview() {
   if (state.phase === 'ready') {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <Header detail={state.detail} />
+        <Header detail={state.detail} mode={mode} />
         <Card>
           <CardContent className="space-y-4 pt-6">
             <p className="text-sm">
-              When you are ready, start the interview. You can pause by leaving the page; it resumes where you stopped.
+              The interviewer reads each question aloud and you answer by speaking. Your answer ends when you press Done
+              (or Space), or after {settings?.endOfAnswerSilenceSec ?? 4} seconds of silence. Speech is transcribed on
+              this computer and the audio is not kept.
             </p>
-            <Button onClick={() => void start()}>Start interview</Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                disabled={enabling}
+                onClick={() =>
+                  void enableVoice().then((ok) => {
+                    if (ok) void start();
+                  })
+                }
+              >
+                <Mic aria-hidden /> Enable microphone and start
+              </Button>
+              <Button
+                variant="outline"
+                disabled={enabling}
+                onClick={() => {
+                  chooseTyping();
+                  void start();
+                }}
+              >
+                <Keyboard aria-hidden /> Start with typed answers
+              </Button>
+              {enabling && (
+                <span role="status" className="text-sm text-muted-foreground">
+                  Loading speech detection…
+                </span>
+              )}
+            </div>
+            {micError && (
+              <p role="alert" className="text-sm text-destructive">
+                {micError}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              You can leave at any time; the interview resumes where you stopped.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -218,7 +357,7 @@ export function Interview() {
   if (state.phase === 'completed') {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <Header detail={state.detail} />
+        <Header detail={state.detail} mode={mode} />
         <Card>
           <CardContent className="space-y-2 pt-6">
             <p className="text-lg">{state.closing ?? 'This interview has ended.'}</p>
@@ -244,15 +383,55 @@ export function Interview() {
   const deciding = state.phase === 'deciding';
   const draft = state.phase === 'answering' ? state.draft : (state.pending ?? '');
   const words = draft.trim() ? draft.trim().split(/\s+/).length : 0;
+  const answeringBy: AnswerMode = voiceTurn ? 'voice' : 'text';
+  // Switching to voice turns the mic on from this click; switching to typing closes it (VoiceAnswer unmounts).
+  const switchTo = (next: AnswerMode) => {
+    if (next === 'text') {
+      chooseTyping();
+      return;
+    }
+    setTypedTurn(undefined);
+    if (voice) {
+      setMode('voice');
+      saveMode('voice');
+    } else void enableVoice();
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <Header detail={state.detail} />
-        <Button variant="outline" size="sm" onClick={() => void end()} disabled={deciding}>
-          End interview
-        </Button>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <Header detail={state.detail} mode={answeringBy} />
+        <div className="flex items-center gap-2">
+          <div role="group" aria-label="Answer by" className="flex rounded-md border p-0.5">
+            {(['voice', 'text'] as const).map((m) => (
+              <Button
+                key={m}
+                size="sm"
+                variant={answeringBy === m ? 'secondary' : 'ghost'}
+                aria-pressed={answeringBy === m}
+                disabled={deciding || enabling}
+                onClick={() => answeringBy !== m && switchTo(m)}
+              >
+                {m === 'voice' ? <Mic aria-hidden /> : <Keyboard aria-hidden />}
+                {m === 'voice' ? 'Voice' : 'Typing'}
+              </Button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => void end()} disabled={deciding}>
+            End interview
+          </Button>
+        </div>
       </div>
+      {enabling && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Loading speech detection…
+        </p>
+      )}
+      {micError && !voiceTurn && (
+        <p role="alert" className="text-sm text-destructive">
+          {micError}
+        </p>
+      )}
 
       <Card>
         <CardContent className="space-y-4 pt-6">
@@ -264,49 +443,93 @@ export function Interview() {
           <p className="text-lg leading-relaxed" aria-live="polite">
             {current.text}
           </p>
-          <VoiceControls enabled={!!speakOn} />
+          {!voiceTurn && <VoiceControls enabled={!!speakOn} />}
         </CardContent>
       </Card>
 
-      <form
-        className="space-y-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void respond('answer', current.id, draft);
-        }}
-      >
-        <label htmlFor="answer" className="text-sm font-medium">
-          Your answer
-        </label>
-        <textarea
-          id="answer"
-          rows={8}
-          autoFocus
-          className={fieldClass}
-          value={draft}
-          disabled={deciding}
-          onChange={(e) => dispatch({ type: 'draft', text: e.target.value })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-              e.preventDefault();
-              void respond('answer', current.id, draft);
-            }
+      {voice?.note && voiceTurn && <p className="text-sm text-muted-foreground">{voice.note}</p>}
+
+      {voiceTurn ? (
+        <VoiceAnswer
+          key={current.id}
+          utterance={[speech, current.text].filter(Boolean).join(' ')}
+          speakOn={speakOn ?? true}
+          input={voice.input}
+          eventsRef={eventsRef}
+          config={{
+            ...DEFAULT_VOICE_CONFIG,
+            thinkingMs: state.detail.config.thinkingTimeSec * 1000,
+            silenceMs: (settings?.endOfAnswerSilenceSec ?? 4) * 1000,
           }}
+          deciding={deciding}
+          decidingSeconds={elapsed}
+          onSubmit={(a) => void respond('answer', current.id, a.transcript, a)}
+          onFallback={(heard) => {
+            setTypedTurn(current.id);
+            dispatch({ type: 'draft', text: heard });
+          }}
+          onSkip={() => void respond('skip', current.id)}
         />
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={deciding}>
-            Submit answer
-          </Button>
-          <Button type="button" variant="ghost" disabled={deciding} onClick={() => void respond('skip', current.id)}>
-            Skip question
-          </Button>
-          <span className="text-xs text-muted-foreground">{words} words · Ctrl+Enter to submit</span>
-        </div>
-        <div role="status" aria-live="polite" className="text-sm">
-          {deciding && <p className="text-muted-foreground">The interviewer is thinking… {elapsed} s</p>}
-          {state.phase === 'answering' && state.error && <p className="text-destructive">{state.error}</p>}
-        </div>
-      </form>
+      ) : mode === 'voice' && !voice && current.id !== typedTurn ? (
+        <Card>
+          <CardContent className="space-y-3 pt-6">
+            <p className="text-sm">Turn the microphone on to continue answering by voice.</p>
+            <div className="flex flex-wrap gap-3">
+              <Button disabled={enabling} onClick={() => void enableVoice()}>
+                <Mic aria-hidden /> Continue with voice
+              </Button>
+              <Button variant="outline" onClick={chooseTyping}>
+                <Keyboard aria-hidden /> Type answers instead
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void respond('answer', current.id, draft);
+          }}
+        >
+          <label htmlFor="answer" className="text-sm font-medium">
+            Your answer
+          </label>
+          <textarea
+            id="answer"
+            rows={8}
+            autoFocus
+            className={fieldClass}
+            value={draft}
+            disabled={deciding}
+            onChange={(e) => dispatch({ type: 'draft', text: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                void respond('answer', current.id, draft);
+              }
+            }}
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={deciding}>
+              Submit answer
+            </Button>
+            <Button type="button" variant="ghost" disabled={deciding} onClick={() => void respond('skip', current.id)}>
+              Skip question
+            </Button>
+            <span className="text-xs text-muted-foreground">{words} words · Ctrl+Enter to submit</span>
+          </div>
+          <div role="status" aria-live="polite" className="text-sm">
+            {deciding && <p className="text-muted-foreground">The interviewer is thinking… {elapsed} s</p>}
+            {state.phase === 'answering' && state.error && <p className="text-destructive">{state.error}</p>}
+          </div>
+          {mode === 'voice' && current.id === typedTurn && (
+            <p className="text-xs text-muted-foreground">
+              Typing this answer; the next question is answered by voice again.
+            </p>
+          )}
+        </form>
+      )}
 
       <section aria-labelledby="transcript-heading" className="space-y-3 border-t pt-4">
         <div className="flex items-center justify-between">
