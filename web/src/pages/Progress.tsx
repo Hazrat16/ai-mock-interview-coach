@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import type { DeliveryPoint } from '@shared/schemas/history';
 import { LineChart } from '@/components/charts/LineChart';
+import { SkillCoverage } from '@/components/charts/SkillCoverage';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { chartLabels, useDashboard } from '@/lib/dashboard';
@@ -51,8 +52,8 @@ export function Progress() {
       <div>
         <h1 className="text-2xl font-semibold">Progress</h1>
         <p className="text-sm text-muted-foreground">
-          How you speak, interview by interview (spoken answers of completed interviews). Content scores are switched
-          off for now.
+          How you speak, interview by interview (spoken answers of completed interviews), and which skills you have
+          practised. Content scores are switched off for now.
         </p>
       </div>
 
@@ -95,6 +96,7 @@ export function Progress() {
           })}
         </>
       )}
+      <SkillCoverage />
     </div>
   );
 }

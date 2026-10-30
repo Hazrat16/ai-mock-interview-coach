@@ -35,6 +35,8 @@ export const createSessionRequestSchema = z.object({
   documentId: z.string().optional(),
   /** A company (Companies page): its questions, yours first, then predictions (M14). */
   company: z.string().trim().min(1).max(120).optional(),
+  /** Questions that cover the skills of your job family you practised least (M15). */
+  assessment: z.boolean().optional(),
 });
 
 export const createSessionResponseSchema = z.discriminatedUnion('status', [

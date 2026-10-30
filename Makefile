@@ -4,7 +4,8 @@ COMPOSE := docker compose
 export HOST_UID := $(shell id -u)
 .DEFAULT_GOAL := help
 
-.PHONY: net-audit help setup models voices dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench bench-tts stt-models bench-stt e2e eval-smoke calibrate
+.PHONY: install-launcher uninstall-launcher net-audit help setup models voices dev start deps-up deps-down status logs test lint typecheck check doctor llm-smoke bench bench-tts stt-models bench-stt e2e eval-smoke calibrate
+LAUNCHER := $(HOME)/.local/share/applications/ai-interview-coach.desktop
 
 help: ## List commands
 	@grep -E '^[a-zA-Z0-9_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  make %-10s %s\n",$$1,$$2}'
@@ -75,6 +76,22 @@ bench-stt: deps-up ## Speech-to-text accuracy (WER) and speed per Whisper model 
 e2e: deps-up ## Spoken interview + its report in Chrome with a fake microphone (real models, ~6 min, own test database)
 	mkdir -p test-results
 	npx playwright test $(ARGS)
+
+install-launcher: ## Add "AI Interview Coach" to the desktop menu (opens the app in its own window; "Stop" action)
+	@mkdir -p $(HOME)/.local/share/applications $(HOME)/.local/share/icons/hicolor/scalable/apps
+	@cp assets/ai-interview-coach.svg $(HOME)/.local/share/icons/hicolor/scalable/apps/ai-interview-coach.svg
+	@printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=AI Interview Coach' \
+	  'Comment=Practise job interviews with a local AI interviewer' \
+	  'Exec=env COACH_NODE_DIR=$(dir $(shell command -v node)) $(CURDIR)/scripts/coach-launch.sh start' \
+	  'Icon=ai-interview-coach' 'Terminal=false' 'Categories=Education;' 'StartupWMClass=ai-interview-coach' \
+	  'Actions=stop;' '' '[Desktop Action stop]' 'Name=Stop' \
+	  'Exec=env COACH_NODE_DIR=$(dir $(shell command -v node)) $(CURDIR)/scripts/coach-launch.sh stop' \
+	  > $(LAUNCHER)
+	@desktop-file-validate $(LAUNCHER) 2>/dev/null || true
+	@echo "Added to the menu: $(LAUNCHER) (remove with: make uninstall-launcher)"
+
+uninstall-launcher: ## Remove the desktop menu entry
+	rm -f $(LAUNCHER) $(HOME)/.local/share/icons/hicolor/scalable/apps/ai-interview-coach.svg
 
 net-audit: ## Privacy check: lists network connections leaving this computer (run during an interview; ARGS="--seconds 60")
 	npx tsx scripts/net-audit.ts $(ARGS)

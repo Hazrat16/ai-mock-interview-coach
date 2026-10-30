@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { coverageSchema } from '@shared/schemas/coverage';
 import { dashboardSchema, historyItemSchema, MATCH_END, MATCH_START } from '@shared/schemas/history';
 import { createSessionResponseSchema, sessionDetailSchema } from '@shared/schemas/interview';
 import { buildApp } from '../../src/app';
@@ -289,3 +290,65 @@ describe('dashboard', () => {
     expect(d.topics).toEqual(expected);
   });
 });
+
+describe('skill coverage and assessment interviews', () => {
+  it('counts practised skills from answered questions, and an assessment targets the gaps', async () => {
+    await setup();
+    const empty = coverageSchema.parse((await app.inject({ url: '/api/coverage?family=software_engineering' })).json());
+    const all = empty.groups.flatMap((g) => g.skills);
+    expect(all.every((s) => s.practiced === 0)).toBe(true);
+    expect(all.find((s) => s.key === 'databases')!.bankQuestions).toBeGreaterThan(0);
+    expect(
+      coverageSchema.parse((await app.inject({ url: '/api/coverage?family=product' })).json()).groups[0]!.skills,
+    ).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'product_sense', bankQuestions: 0 })]));
+    expect((await app.inject({ url: '/api/coverage?family=astronaut' })).statusCode).toBe(400);
+
+    await interview({ type: 'technical', level: 'junior', answers: ['One.', 'Two.', 'Three.'] });
+    const after = coverageSchema.parse((await app.inject({ url: '/api/coverage?family=software_engineering' })).json());
+    const practiced = after.groups.flatMap((g) => g.skills).filter((s) => s.practiced > 0);
+    expect(practiced.length).toBeGreaterThan(0);
+
+    // An assessment interview avoids the skills just practised while untouched ones remain.
+    const created = createSessionResponseSchema.parse(
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/api/sessions',
+          payload: {
+            config: { ...CONFIG_TECH, questionCount: 3 },
+            assessment: true,
+            seed: 4,
+          },
+        })
+      ).json(),
+    );
+    if (created.status !== 'created') throw new Error('not created');
+    expect(db.prepare('SELECT mode FROM sessions WHERE id = ?').get(created.sessionId)).toEqual({ mode: 'assessment' });
+    const plan = JSON.parse(
+      (db.prepare('SELECT plan_json FROM sessions WHERE id = ?').get(created.sessionId) as { plan_json: string })
+        .plan_json,
+    ) as { questionIds: string[] };
+    const done = new Set(practiced.map((s) => s.key));
+    for (const id of plan.questionIds) {
+      const skills = JSON.parse(
+        (db.prepare('SELECT skill_tags_json FROM questions WHERE id = ?').get(id) as { skill_tags_json: string })
+          .skill_tags_json,
+      ) as string[];
+      expect(
+        skills.some((s) => !done.has(s)),
+        skills.join(','),
+      ).toBe(true);
+    }
+  });
+});
+
+const CONFIG_TECH = {
+  jobTitle: 'Backend Engineer',
+  jobFamily: 'software_engineering',
+  level: 'junior',
+  interviewType: 'technical',
+  difficulty: 'medium',
+  questionCount: 3,
+  thinkingTimeSec: 10,
+  followUpLimit: 0,
+};

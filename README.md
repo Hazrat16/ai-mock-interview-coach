@@ -2,7 +2,7 @@
 
 A personal, audio-only mock interview app that runs entirely on this computer. It uses Ollama for the LLM, Piper for text-to-speech, and whisper.cpp for speech-to-text. There are no cloud services and no API keys.
 
-Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M14 (company-specific preparation)**; M9 scoring calibration paused, M12 skipped (both need scores). Scoring is off (`shared/features.ts`): after an interview the report shows an interview-ready answer and the key points for each question.
+Planning documents: [docs/plan/](docs/plan/00-README.md). Current milestone: **M15 (assessment coverage, accessibility, launcher)**: v1 complete; M9 scoring calibration paused, M12 skipped (both need scores). Scoring is off (`shared/features.ts`): after an interview the report shows an interview-ready answer and the key points for each question.
 
 ## How it runs
 
@@ -21,7 +21,7 @@ make doctor     # check the machine
 make dev        # open http://127.0.0.1:5173  (Ctrl+C stops all)
 ```
 
-Other commands: `make start` (production build on http://127.0.0.1:4317), `make check` (lint, type-check, tests), `make llm-smoke` (quick LLM check), `make bench` (LLM benchmark, ~25 min), `make bench-tts` (voice speed), `make bench-stt` (speech recognition accuracy), `make e2e` (a full spoken interview in Chrome with a fake microphone, then its report), `make eval-smoke` (one real evaluation per interview type), `make calibrate` (scoring calibration, paused), `make net-audit` (lists any network connection leaving this computer; run it during an interview), `make help`.
+Other commands: `make start` (production build on http://127.0.0.1:4317), `make check` (lint, type-check, tests), `make llm-smoke` (quick LLM check), `make bench` (LLM benchmark, ~25 min), `make bench-tts` (voice speed), `make bench-stt` (speech recognition accuracy), `make e2e` (a full spoken interview in Chrome with a fake microphone, then its report), `make eval-smoke` (one real evaluation per interview type), `make calibrate` (scoring calibration, paused), `make net-audit` (lists any network connection leaving this computer; run it during an interview), `make install-launcher` (adds "AI Interview Coach" to the desktop menu: opens the app in its own window, with a "Stop" action), `make help`.
 
 ## Where things live
 

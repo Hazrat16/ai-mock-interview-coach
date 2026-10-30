@@ -33,7 +33,7 @@ I am not a lawyer; this is a practical audit, not legal advice.
 | Fastify, Zod, pino | MIT | K | No | No | No | No |
 | React, Vite, Tailwind CSS, shadcn/ui, Radix UI | MIT | K | No | No | No | No (the shadcn CLI fetches component source at **dev time** only) |
 | Recharts | MIT | K | No | No | No | No |
-| pdfjs-dist (resume import) | Apache-2.0 | K | No | No | No | No |
+| `unpdf` 2.1.0 (resume import; bundles pdf.js, Apache-2.0) instead of pdfjs-dist | MIT | V (M13, npm) | No | No | No | No (text extracted in the server process) |
 | `@fontsource/*` fonts (e.g. Inter) | SIL OFL 1.1 | K | No | No | No | No (self-hosted, never Google Fonts CDN) |
 
 ## Development-only components
@@ -43,7 +43,7 @@ I am not a lawyer; this is a practical audit, not legal advice.
 | TypeScript, tsx, ESLint, Prettier, concurrently | Apache-2.0 / MIT | K | No telemetry at runtime |
 | Vitest | MIT | K | |
 | Playwright | Apache-2.0 | K | Downloads a Chromium build once at install time |
-| axe-core | MPL-2.0 | K | Test-time only |
+| `@axe-core/playwright` 4.14.0 (axe-core 4.14.0) | MPL-2.0 | V (M15, npm) | Test-time only (`e2e/a11y.spec.ts`) |
 | CMake, GCC | BSD-3 / GPL | K | Build tools; no effect on your code |
 | npm registry, GitHub, Hugging Face, ollama.com | – | – | Contacted **only** during install and updates |
 

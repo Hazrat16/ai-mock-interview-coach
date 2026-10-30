@@ -3,6 +3,7 @@ import { readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { wordErrorRate } from '../shared/text/wer';
+import { a11yProblems } from './helpers/a11y';
 import { ANSWER } from './global-setup';
 
 type TurnTiming = { totalMs: number; transcribeMs: number; decideMs: number; speakMs: number };
@@ -30,6 +31,9 @@ test('spoken interview: questions are read aloud, answers are heard, transcribed
   // The mic is open only after the interviewer finished: recording indicator during thinking/listening.
   await expect(page.getByText('Recording', { exact: true })).toBeVisible({ timeout: 90_000 });
   await expect(page.getByText(/Heard so far:/)).toBeVisible({ timeout: 60_000 });
+  // Accessibility of the voice screen while it listens (M15).
+  const a11y = await a11yProblems(page, 'voice interview');
+  expect(a11y, a11y.join('\n')).toEqual([]);
   await expect(page.getByText(/Finishing your answer in/)).toBeVisible({ timeout: 60_000 });
 
   await expect(page.getByText(/end of the interview/i)).toBeVisible({ timeout: 5 * 60_000 });

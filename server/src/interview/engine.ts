@@ -11,6 +11,7 @@ import type {
 import type { Settings } from '@shared/schemas/settings';
 import { type Db, transaction } from '../db/connection';
 import { addCompanyQuestions, companyCandidates, companyNoteIds, questionProvenance } from '../db/repos/companies';
+import { practicedSkills } from '../db/repos/coverage';
 import { getDocument, linkSessionDocument, sessionDocumentContext } from '../db/repos/documents';
 import { findCandidates, getQuestion, idsForTexts, insertQuestions, recentlyAskedIds } from '../db/repos/questions';
 import {
@@ -33,6 +34,7 @@ import type { OllamaClient } from '../llm/ollamaClient';
 import { isClarificationRequest, rephrase } from './clarify';
 import { chooseFollowUp, decide, warmUp } from './followUp';
 import { generateFromDocument, generateQuestions } from './generator';
+import { planAssessment } from './assessment';
 import { planQuestions, seededRandom, shuffle } from './planner';
 import {
   ACKS,
@@ -68,6 +70,7 @@ type CreateInput = {
   onShortfall: 'ask' | 'generate' | 'reduce';
   documentId?: string;
   company?: string;
+  assessment?: boolean;
 };
 
 const OPEN: SessionStatus[] = ['planned', 'in_progress', 'paused'];
@@ -92,12 +95,19 @@ export class InterviewEngine {
     const seed = input.seed ?? randomInt(2 ** 31);
     const recentIds = recentlyAskedIds(this.db, this.deps.recentSessions ?? 3);
     const plan = () =>
-      planQuestions(findCandidates(this.db, config), {
-        count: config.questionCount,
-        difficulty: config.difficulty,
-        seed,
-        recentIds,
-      });
+      input.assessment
+        ? planAssessment(findCandidates(this.db, config), {
+            count: config.questionCount,
+            seed,
+            family: config.jobFamily,
+            practiced: practicedSkills(this.db),
+          })
+        : planQuestions(findCandidates(this.db, config), {
+            count: config.questionCount,
+            difficulty: config.difficulty,
+            seed,
+            recentIds,
+          });
 
     let p = plan();
     let generated = 0;
@@ -116,7 +126,7 @@ export class InterviewEngine {
     const sessionId = insertSession(this.db, {
       config,
       plan: { seed, questionIds: p.questionIds },
-      mode: 'random',
+      mode: input.assessment ? 'assessment' : 'random',
       interviewerModel: s.interviewerModel,
     });
     if (this.deps.warmUp) void warmUp(this.deps.llm, s.interviewerModel, this.deps.numThread);

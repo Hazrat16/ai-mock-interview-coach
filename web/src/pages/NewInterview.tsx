@@ -120,7 +120,9 @@ export function NewInterview() {
       ? `doc:${params.get('document')}`
       : params.get('company')
         ? `company:${params.get('company')}`
-        : '',
+        : params.get('assessment')
+          ? 'assessment'
+          : '',
   );
   const [documents, setDocuments] = useState<DocumentView[]>([]);
   const [companies, setCompanies] = useState<string[]>([]);
@@ -138,6 +140,7 @@ export function NewInterview() {
   }, []);
   const basedOn = documents.find((d) => `doc:${d.id}` === source);
   const company = companies.find((c) => `company:${c}` === source);
+  const assessment = source === 'assessment';
 
   // New users get their default thinking time from Settings.
   useEffect(() => {
@@ -170,7 +173,7 @@ export function NewInterview() {
       const res = await sendJson(
         'POST',
         '/api/sessions',
-        { config: valid.data, onShortfall, documentId: basedOn?.id, company },
+        { config: valid.data, onShortfall, documentId: basedOn?.id, company, assessment: assessment || undefined },
         createSessionResponseSchema,
       );
       if (res.status === 'needs_decision') {
@@ -229,19 +232,22 @@ export function NewInterview() {
                       : "Questions on the job's required skills and responsibilities, written by the local model."
                     : company
                       ? `Your questions for ${company} first, then predictions; each one shows where it came from.`
-                      : undefined
+                      : assessment
+                        ? 'Bank questions chosen to cover the skills of this job family you have practised least (see Progress).'
+                        : undefined
                 }
               >
                 <select
                   id="based-on"
                   className={fieldClass}
-                  value={basedOn || company ? source : ''}
+                  value={basedOn || company || assessment ? source : ''}
                   onChange={(e) => {
                     setSource(e.target.value);
                     setShortfall(undefined);
                   }}
                 >
                   <option value="">From the question bank</option>
+                  <option value="assessment">Cover the skills I&apos;ve practised least</option>
                   {documents.map((d) => (
                     <option key={d.id} value={`doc:${d.id}`}>
                       From {KIND_LABELS[d.kind].toLowerCase()}: {d.title}
