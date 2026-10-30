@@ -9,6 +9,7 @@ import type { SessionReport } from '@shared/schemas/evaluation';
 import { backupDir, createBackup, listBackups } from '../db/backup';
 import { type Db, transaction } from '../db/connection';
 import { loadMigrations, migrate } from '../db/migrate';
+import { getDocument, listDocuments } from '../db/repos/documents';
 import { resetRunningJobs } from '../db/repos/evaluations';
 import { HttpError } from '../errors';
 import { buildReport } from '../evaluation/report';
@@ -37,6 +38,7 @@ export function exportAll(db: Db, appVersion: string) {
     appVersion,
     exportedAt: new Date().toISOString(),
     settings: Object.fromEntries(settings.map((s) => [s.key, JSON.parse(s.value_json) as unknown])),
+    documents: listDocuments(db).map((d) => getDocument(db, d.id)),
     interviews: ids.map(({ id }): SessionReport => buildReport(db, id)),
   };
 }

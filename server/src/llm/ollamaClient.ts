@@ -80,24 +80,83 @@ type OllamaChatResponse = {
 export class OllamaClient {
   // Models that rejected `think: false` (no thinking mode); remembered so we don't retry every call.
   private readonly noThinkingMode = new Set<string>();
+  // One request at a time, in order. Ollama runs one at a time anyway (-np 1); queued here, a request that
+  // times out or is cancelled while waiting never reaches Ollama. Requests cancelled inside Ollama's own
+  // queue sometimes left it stuck (every later request waiting) until it was restarted.
+  private busy = false;
+  private waiting: (() => void)[] = [];
 
   constructor(private readonly baseUrl: string) {}
 
+  /** The timeout covers the wait in the queue too. */
   async chat(req: ChatRequest): Promise<ChatResult> {
+    const timeoutMs = req.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const signal = AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(req.signal ? [req.signal] : [])]);
     try {
-      return await this.send(req, !this.noThinkingMode.has(req.model));
+      await this.acquire(signal);
+    } catch (err) {
+      throw this.failed(err, req.model, timeoutMs);
+    }
+    try {
+      return await this.send(req, !this.noThinkingMode.has(req.model), signal, timeoutMs);
     } catch (err) {
       if (err instanceof OllamaError && /does not support thinking/i.test(err.message)) {
         this.noThinkingMode.add(req.model);
-        return this.send(req, false);
+        return await this.send(req, false, signal, timeoutMs);
       }
       throw err;
+    } finally {
+      this.release();
     }
   }
 
-  private async send(req: ChatRequest, disableThinking: boolean): Promise<ChatResult> {
-    const timeoutMs = req.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    const signals = [AbortSignal.timeout(timeoutMs), ...(req.signal ? [req.signal] : [])];
+  private acquire(signal: AbortSignal): Promise<void> {
+    signal.throwIfAborted();
+    if (!this.busy) {
+      this.busy = true;
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const turn = () => {
+        signal.removeEventListener('abort', giveUp);
+        resolve();
+      };
+      const giveUp = () => {
+        this.waiting = this.waiting.filter((w) => w !== turn);
+        reject(signal.reason as Error);
+      };
+      this.waiting.push(turn);
+      signal.addEventListener('abort', giveUp, { once: true });
+    });
+  }
+
+  /** Hands the turn to the next request in line (busy stays true), or frees the client. */
+  private release() {
+    const next = this.waiting.shift();
+    if (next) next();
+    else this.busy = false;
+  }
+
+  private failed(err: unknown, model: string, timeoutMs: number) {
+    if ((err as Error).name === 'TimeoutError') {
+      return new OllamaTimeoutError(
+        `${model} did not answer within ${Math.round(timeoutMs / 1000)} s`,
+        'The computer may be busy or low on memory. Try again, or choose the smaller model in Settings.',
+        { cause: err },
+      );
+    }
+    if ((err as Error).name === 'AbortError') return err;
+    return new OllamaUnavailableError(`Ollama is not reachable at ${this.baseUrl}`, 'Start it with: make deps-up', {
+      cause: err,
+    });
+  }
+
+  private async send(
+    req: ChatRequest,
+    disableThinking: boolean,
+    signal: AbortSignal,
+    timeoutMs: number,
+  ): Promise<ChatResult> {
     const body = {
       model: req.model,
       messages: req.messages,
@@ -111,20 +170,6 @@ export class OllamaClient {
       ...(disableThinking ? { think: false } : {}),
     };
 
-    const failed = (err: unknown) => {
-      if ((err as Error).name === 'TimeoutError') {
-        return new OllamaTimeoutError(
-          `${req.model} did not answer within ${Math.round(timeoutMs / 1000)} s`,
-          'The computer may be busy or low on memory. Try again, or choose the smaller model in Settings.',
-          { cause: err },
-        );
-      }
-      if ((err as Error).name === 'AbortError') return err;
-      return new OllamaUnavailableError(`Ollama is not reachable at ${this.baseUrl}`, 'Start it with: make deps-up', {
-        cause: err,
-      });
-    };
-
     let res: Response;
     let text: string;
     try {
@@ -132,11 +177,11 @@ export class OllamaClient {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
-        signal: AbortSignal.any(signals),
+        signal,
       });
       text = await res.text();
     } catch (err) {
-      throw failed(err);
+      throw this.failed(err, req.model, timeoutMs);
     }
 
     // One JSON object per line: content pieces, then a last one with done_reason and the timings.

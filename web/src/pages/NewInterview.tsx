@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import {
   type CreateSessionResponse,
@@ -13,6 +13,7 @@ import {
   type SessionSummary,
   sessionSummarySchema,
 } from '@shared/schemas/interview';
+import { type DocumentView, documentViewSchema } from '@shared/schemas/documents';
 import { settingsSchema } from '@shared/schemas/settings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +22,7 @@ import { DIFFICULTY_LABELS, INTERVIEW_TYPE_LABELS, JOB_FAMILY_LABELS, LEVEL_LABE
 import { fieldClass } from '@/lib/styles';
 
 const STORAGE_KEY = 'interview-coach:last-config';
+const KIND_LABELS = { resume: 'Resume', job_description: 'Job description' } as const;
 
 const DEFAULTS: InterviewConfig = {
   jobTitle: 'Software Engineer',
@@ -109,6 +111,20 @@ export function NewInterview() {
   const [busy, setBusy] = useState<string>();
   const [shortfall, setShortfall] = useState<Extract<CreateSessionResponse, { status: 'needs_decision' }>>();
   const [error, setError] = useState<string>();
+  // An interview can be based on a resume or job description (Documents); its questions are then written from it.
+  const [params] = useSearchParams();
+  const [documentId, setDocumentId] = useState(params.get('document') ?? '');
+  const [documents, setDocuments] = useState<DocumentView[]>([]);
+  useEffect(() => {
+    let active = true;
+    getJson('/api/documents', z.array(documentViewSchema))
+      .then((list) => active && setDocuments(list.filter((d) => d.summary)))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+  const basedOn = documents.find((d) => d.id === documentId);
 
   // New users get their default thinking time from Settings.
   useEffect(() => {
@@ -128,16 +144,18 @@ export function NewInterview() {
   const submit = async (onShortfall: 'ask' | 'generate' | 'reduce') => {
     if (!valid.success) return;
     setBusy(
-      onShortfall === 'generate'
-        ? 'Writing new questions with the local model… this can take a minute or two.'
-        : 'Preparing…',
+      basedOn
+        ? `Writing ${valid.data.questionCount} questions from your ${KIND_LABELS[basedOn.kind].toLowerCase()} with the local model… this takes 1–3 minutes.`
+        : onShortfall === 'generate'
+          ? 'Writing new questions with the local model… this can take a minute or two.'
+          : 'Preparing…',
     );
     setError(undefined);
     try {
       const res = await sendJson(
         'POST',
         '/api/sessions',
-        { config: valid.data, onShortfall },
+        { config: valid.data, onShortfall, documentId: basedOn?.id },
         createSessionResponseSchema,
       );
       if (res.status === 'needs_decision') {
@@ -162,8 +180,11 @@ export function NewInterview() {
       <div>
         <h1 className="text-2xl font-semibold">New interview</h1>
         <p className="text-sm text-muted-foreground">
-          Questions come from the local question bank. The interviewer reads each question aloud (turn this off in
-          Settings). You answer by typing; spoken answers arrive in M7.
+          Questions come from the local question bank, or are written from your resume or a job description (add them in{' '}
+          <Link to="/documents" className="underline underline-offset-4">
+            Documents
+          </Link>
+          ). The interviewer reads each question aloud, and you answer by voice or by typing.
         </p>
       </div>
 
@@ -182,6 +203,36 @@ export function NewInterview() {
               void submit('ask');
             }}
           >
+            <div className="sm:col-span-2">
+              <Field
+                id="based-on"
+                label="Questions"
+                help={
+                  basedOn
+                    ? basedOn.kind === 'resume'
+                      ? 'Questions about the projects and roles in your resume, written by the local model.'
+                      : "Questions on the job's required skills and responsibilities, written by the local model."
+                    : undefined
+                }
+              >
+                <select
+                  id="based-on"
+                  className={fieldClass}
+                  value={basedOn ? documentId : ''}
+                  onChange={(e) => {
+                    setDocumentId(e.target.value);
+                    setShortfall(undefined);
+                  }}
+                >
+                  <option value="">From the question bank</option>
+                  {documents.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      From {KIND_LABELS[d.kind].toLowerCase()}: {d.title}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
             <Field id="job-title" label="Job title">
               <input
                 id="job-title"

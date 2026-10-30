@@ -69,4 +69,27 @@ describe('OllamaClient.chat', () => {
     await ask(client, 'granite4:3b');
     expect(fake.requests.map((r) => 'think' in r)).toEqual([true, false, false]);
   });
+
+  it('sends one request at a time, in order', async () => {
+    fake = await startFakeOllama({ chat: [{ ...chatReply('first'), delayMs: 300 }, chatReply('second')] });
+    const client = new OllamaClient(fake.url);
+    const first = ask(client);
+    const second = ask(client, 'granite4:3b');
+    await new Promise((r) => setTimeout(r, 150));
+    expect(fake.requests).toHaveLength(1); // the second waits in the client, not in Ollama
+    expect((await first).content).toBe('first');
+    expect((await second).content).toBe('second');
+    expect(fake.requests.map((r) => r.model)).toEqual(['qwen3.5:4b', 'granite4:3b']);
+  });
+
+  it('a request that times out while waiting never reaches Ollama, and the queue moves on', async () => {
+    fake = await startFakeOllama({ chat: [{ ...chatReply('slow'), delayMs: 600 }, chatReply('next')] });
+    const client = new OllamaClient(fake.url);
+    const slow = ask(client);
+    const late = ask(client, 'granite4:3b', 200).catch((e: unknown) => e);
+    expect(await late).toBeInstanceOf(OllamaTimeoutError);
+    expect((await slow).content).toBe('slow');
+    expect((await ask(client)).content).toBe('next');
+    expect(fake.requests.map((r) => r.model)).toEqual(['qwen3.5:4b', 'qwen3.5:4b']);
+  });
 });

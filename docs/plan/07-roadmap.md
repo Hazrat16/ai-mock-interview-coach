@@ -159,10 +159,13 @@ Every milestone ends with this **Definition of Done**:
 
 ## M12. Adaptive difficulty, retry, weakness focus, exercises, goals
 **Acceptance:** R17–R20. The planner explains every selection ("chosen because: trade-off reasoning avg 48 over 4 attempts").
+**Status: skipped for now (2026-10-30).** Almost all of it (adaptive difficulty, weakness focus, exercises, goals) is built on scores, which are off (M9 paused). Revisit when scoring comes back; "retry a question" and "practise least-covered topics" could be built without scores.
 
 ## M13. Job description and resume interviews
 **Files:** `documents/{pdfText,summarize}.ts`, `interview/modes/{jd,resume}.ts`, Documents UI.
 **Acceptance:** R21, R22; PDF parsing works offline; prompts contain the summary (≤ 300 tokens), not the full document.
+**Implemented as (M13):** Documents page (paste a job description; upload a resume as PDF or text, or paste it). Text is extracted in the server with **unpdf** (MIT, 3 MB; it bundles pdf.js, Apache-2.0) instead of pdfjs-dist (35 MB): same engine, smaller, simpler API. On adding, qwen writes a structured summary (job: role, required skills, responsibilities, nice to have; resume: skills, projects, experience), rendered as text (~150 words) and shown as "What the interviewer sees"; if Ollama is down the document is kept and "Summarize again" works later. "New interview" → Questions: from the bank or from a document; the model writes all questions from the summary (job: one required skill or responsibility each; resume: one named project or role each; behavioral/HR: a story from it). They are stored with `source = 'user'` and never picked for bank interviews. The summary also goes to the follow-up decision and the interview-ready answer (which uses the resume's real projects). Measured: summary 41-43 s, 3 questions 83-108 s. Export and "delete everything" include documents. Tests: `server/test/integration/documents.test.ts` (fake Ollama: PDF and text, refusals, model down, the summary in every prompt, no leak into the bank), `e2e/documents.spec.ts` (real models: PDF upload → interview whose question names a resume project).
+**Fixes (M13):** Fastify's own 4xx errors (e.g. upload too large: 413) were turned into 500. Ollama got stuck again once in a full e2e run (every request waiting until restarted) even with one context size; the client now sends one request at a time and keeps the queue itself, so a request that times out while waiting never reaches Ollama.
 
 ## M14. Company-specific preparation
 **Acceptance:** R23. Every company item displays "Verified by you (source, date)" or "Generated prediction, not verified". There is no runtime web access.

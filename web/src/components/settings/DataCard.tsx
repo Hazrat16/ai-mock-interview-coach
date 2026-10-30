@@ -188,7 +188,7 @@ export function DataCard() {
               busyLabel="Deleting…"
               variant="destructive"
               word={DELETE_WORD}
-              warning="Removes every interview, your answers, interview-ready answers, and your speech-check recordings."
+              warning="Removes every interview, your answers, interview-ready answers, your resumes and job descriptions, and your speech-check recordings."
               onConfirm={() =>
                 run(async () => {
                   await sendJson('POST', '/api/data/delete-all', { confirm: DELETE_WORD }, deleteResultSchema);

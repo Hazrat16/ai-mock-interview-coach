@@ -14,6 +14,7 @@ import {
   requeueJob,
   resetRunningJobs,
 } from '../db/repos/evaluations';
+import { sessionDocumentContext } from '../db/repos/documents';
 import { getTurns } from '../db/repos/sessions';
 import { OllamaError, OllamaUnavailableError, type OllamaClient } from '../llm/ollamaClient';
 import { StructuredOutputError } from '../llm/structured';
@@ -70,6 +71,7 @@ export function loadInput(db: Db, evaluationId: string): { input: EvaluationInpu
       config: JSON.parse(at.config_snapshot_json) as InterviewConfig,
       exchange,
       expectedPoints: expected ? (JSON.parse(expected.expected_points_json) as string[]) : [],
+      document: sessionDocumentContext(db, at.session_id),
     },
   };
 }

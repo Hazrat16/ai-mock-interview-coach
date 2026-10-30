@@ -36,6 +36,12 @@ Write the interview-ready answer to the main question: what a strong ${level} ${
     `Interview type: ${config.interviewType.replace('_', ' ')}.`,
     config.customInstructions ? `Interview focus: ${config.customInstructions}` : '',
     expectedPoints.length ? `Expected points for the main question: ${expectedPoints.join('; ')}.` : '',
+    input.document?.kind === 'resume'
+      ? `The candidate's resume (summary; use its real projects and facts, invent no others):\n${input.document.summary}`
+      : '',
+    input.document?.kind === 'job_description'
+      ? `The job description (summary; connect the answer to it):\n${input.document.summary}`
+      : '',
     `\nExchange:\n${transcript}`,
   ]
     .filter(Boolean)

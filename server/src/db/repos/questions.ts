@@ -130,10 +130,20 @@ const fromRow = (r: Row): Question => ({
 /** Questions of this type that suit the job family (or any family) and the level. Any difficulty. */
 export function findCandidates(db: Db, f: { interviewType: string; jobFamily: string; level: Level }): Question[] {
   const rows = db
-    .prepare(`SELECT * FROM questions WHERE interview_type = ? AND (job_family IS NULL OR job_family = ?) ORDER BY id`)
+    // source 'user': written from your resume or a job description, asked only in interviews based on it.
+    .prepare(
+      `SELECT * FROM questions WHERE interview_type = ? AND (job_family IS NULL OR job_family = ?) AND source != 'user'
+       ORDER BY id`,
+    )
     .all(f.interviewType, f.jobFamily) as Row[];
   const lvl = levelIndex(f.level);
   return rows.map(fromRow).filter((q) => levelIndex(q.levelMin) <= lvl && lvl <= levelIndex(q.levelMax));
+}
+
+/** Ids of questions with these texts, in the same order (after insertQuestions; a repeat reuses the stored one). */
+export function idsForTexts(db: Db, texts: string[]): string[] {
+  const find = db.prepare('SELECT id FROM questions WHERE text_hash = ?');
+  return texts.map((t) => (find.get(textHash(t)) as { id: string }).id);
 }
 
 export function getQuestion(db: Db, id: string): Question | undefined {

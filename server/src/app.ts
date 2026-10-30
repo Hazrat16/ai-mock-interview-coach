@@ -14,6 +14,7 @@ import { StructuredOutputError } from './llm/structured';
 import { healthRoutes } from './routes/health';
 import { JobRunner } from './evaluation/jobRunner';
 import { dataRoutes } from './routes/data';
+import { documentRoutes } from './routes/documents';
 import { evaluationQueue, evaluationRoutes } from './routes/evaluations';
 import { historyRoutes } from './routes/history';
 import { llmRoutes } from './routes/llm';
@@ -76,6 +77,12 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
       app.log.warn({ raw: err.raw.slice(0, 500) }, err.message);
       return reply.code(502).send({ error: 'The model gave an invalid answer twice. Try again.' });
     }
+    // Fastify's own request errors (body too large, malformed JSON, ...) keep their 4xx status.
+    const status = (err as { statusCode?: number }).statusCode;
+    if (status && status >= 400 && status < 500) {
+      const tooLarge = status === 413 ? 'The file is too large.' : (err as Error).message;
+      return reply.code(status).send({ error: tooLarge });
+    }
     app.log.error(err);
     return reply.code(500).send({ error: 'Internal error' });
   });
@@ -94,6 +101,7 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
   const samples = new SampleStore(join(env.DATA_DIR, 'stt-samples'));
   sttRoutes(app, whisper, env.WHISPER_MODEL, samples);
   dataRoutes(app, db, env.DATA_DIR, version, samples);
+  documentRoutes(app, db, llm, settings, env.LLM_NUM_THREAD);
   if (env.NODE_ENV !== 'test') {
     // Fixed phrases get cached audio right away, so the first interview never waits for them.
     app.addHook('onListen', async () => {

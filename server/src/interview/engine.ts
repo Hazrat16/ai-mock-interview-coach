@@ -10,7 +10,8 @@ import type {
 } from '@shared/schemas/interview';
 import type { Settings } from '@shared/schemas/settings';
 import { type Db, transaction } from '../db/connection';
-import { findCandidates, getQuestion, insertQuestions, recentlyAskedIds } from '../db/repos/questions';
+import { getDocument, linkSessionDocument, sessionDocumentContext } from '../db/repos/documents';
+import { findCandidates, getQuestion, idsForTexts, insertQuestions, recentlyAskedIds } from '../db/repos/questions';
 import {
   type SessionRow,
   type SessionStatus,
@@ -30,7 +31,7 @@ import { conflict, notFound } from '../errors';
 import type { OllamaClient } from '../llm/ollamaClient';
 import { isClarificationRequest, rephrase } from './clarify';
 import { chooseFollowUp, decide, warmUp } from './followUp';
-import { generateQuestions } from './generator';
+import { generateFromDocument, generateQuestions } from './generator';
 import { planQuestions } from './planner';
 import {
   ACKS,
@@ -64,6 +65,7 @@ type CreateInput = {
   config: InterviewConfig;
   seed?: number;
   onShortfall: 'ask' | 'generate' | 'reduce';
+  documentId?: string;
 };
 
 const OPEN: SessionStatus[] = ['planned', 'in_progress', 'paused'];
@@ -82,6 +84,7 @@ export class InterviewEngine {
   }
 
   async create(input: CreateInput): Promise<CreateSessionResponse> {
+    if (input.documentId) return this.createFromDocument(input.config, input.documentId);
     const { config } = input;
     const seed = input.seed ?? randomInt(2 ** 31);
     const recentIds = recentlyAskedIds(this.db, this.deps.recentSessions ?? 3);
@@ -115,6 +118,48 @@ export class InterviewEngine {
     });
     if (this.deps.warmUp) void warmUp(this.deps.llm, s.interviewerModel, this.deps.numThread);
     return { status: 'created', sessionId, questionCount: p.questionIds.length, generated };
+  }
+
+  /** A job-description or resume interview: every question is written from the document's summary. */
+  private async createFromDocument(config: InterviewConfig, documentId: string): Promise<CreateSessionResponse> {
+    const doc = getDocument(this.db, documentId);
+    if (!doc) throw notFound('Document');
+    if (!doc.summary) throw conflict('This document has no summary yet. Open Documents and summarize it again.');
+    const s = this.deps.settings();
+    const questions = await generateFromDocument(
+      this.deps.llm,
+      { model: s.evaluatorModel, numThread: this.deps.numThread },
+      config,
+      { kind: doc.kind, summary: doc.summary },
+      config.questionCount,
+    );
+    if (questions.length === 0) throw conflict('The model wrote no questions. Try again.');
+    insertQuestions(
+      this.db,
+      questions.map((q) => ({
+        text: q.text,
+        interviewType: config.interviewType,
+        jobFamily: config.jobFamily,
+        levelMin: config.level,
+        levelMax: config.level,
+        difficulty: q.difficulty,
+        skills: q.skills,
+        expectedPoints: q.expected_points,
+        source: 'user',
+        provenance: 'generated',
+      })),
+    );
+    const texts = questions.map((q) => q.text);
+    const questionIds = [...new Set(idsForTexts(this.db, texts))];
+    const sessionId = insertSession(this.db, {
+      config,
+      plan: { seed: 0, questionIds },
+      mode: doc.kind === 'resume' ? 'resume' : 'jd',
+      interviewerModel: s.interviewerModel,
+    });
+    linkSessionDocument(this.db, sessionId, doc.id);
+    if (this.deps.warmUp) void warmUp(this.deps.llm, s.interviewerModel, this.deps.numThread);
+    return { status: 'created', sessionId, questionCount: questionIds.length, generated: questions.length };
   }
 
   private async generate(config: InterviewConfig, count: number): Promise<number> {
@@ -197,6 +242,7 @@ export class InterviewEngine {
             .filter((t) => t.id !== turn.id && t.answer)
             .map((t) => ({ question: t.questionText, answer: t.answer!.transcript })),
           answer: body.transcript,
+          document: sessionDocumentContext(this.db, session.id),
         },
       );
       this.deps.log?.(error ? `follow-up decision failed after ${ms} ms: ${error}` : `follow-up decision in ${ms} ms`);

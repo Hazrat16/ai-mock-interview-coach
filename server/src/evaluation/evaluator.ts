@@ -20,6 +20,8 @@ export type EvaluationInput = {
   exchange: Exchange[];
   /** From the question bank: what a good answer covers. */
   expectedPoints: string[];
+  /** Resume or job-description interviews: the document's summary. */
+  document?: { kind: 'job_description' | 'resume'; summary: string };
 };
 
 const MAX_TRANSCRIPT_CHARS = 6000; // ~1500 tokens; long answers are clipped to keep CPU time reasonable

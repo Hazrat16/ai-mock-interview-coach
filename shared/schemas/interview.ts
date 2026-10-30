@@ -30,6 +30,8 @@ export const createSessionRequestSchema = z.object({
   seed: z.number().int().min(0).optional(),
   /** What to do when the bank has fewer matching questions than requested. */
   onShortfall: z.enum(['ask', 'generate', 'reduce']).default('ask'),
+  /** A job description or resume: its questions are written from it by the local model (M13). */
+  documentId: z.string().optional(),
 });
 
 export const createSessionResponseSchema = z.discriminatedUnion('status', [

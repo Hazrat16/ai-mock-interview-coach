@@ -36,6 +36,8 @@ export type DecisionContext = {
   /** Earlier follow-ups on this main question with their answers. */
   thread: { question: string; answer: string }[];
   answer: string;
+  /** Resume or job-description interviews: the document's summary, so follow-ups can refer to it. */
+  document?: { kind: 'job_description' | 'resume'; summary: string };
 };
 
 const MAX_ANSWER_CHARS = 2400; // ~600 tokens; keeps the prompt small for CPU inference
@@ -48,6 +50,12 @@ export function buildMessages(ctx: DecisionContext): ChatMessage[] {
   ];
   if (config.customInstructions)
     lines.push(`Candidate's instructions for this interview: ${config.customInstructions}`);
+  if (ctx.document) {
+    lines.push(
+      ctx.document.kind === 'resume' ? "The candidate's resume (summary):" : 'The job description (summary):',
+      ctx.document.summary,
+    );
+  }
   if (ctx.coveredTopics.length) {
     lines.push('Topics already covered:', ...ctx.coveredTopics.map((t, i) => `${i + 1}. ${t}`));
   }
