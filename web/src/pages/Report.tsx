@@ -107,7 +107,7 @@ export function Report() {
             interview
           </h1>
           <p className="text-sm text-muted-foreground">
-            {c.jobTitle} · {LEVEL_LABELS[c.level as InterviewConfig['level']] ?? c.level} level
+            {c.jobTitle} · {LEVEL_LABELS[c.level as InterviewConfig['level']] ?? c.level}
             {report.endedAt && ` · ${new Date(report.endedAt).toLocaleString()}`}
           </p>
         </div>
@@ -130,7 +130,7 @@ export function Report() {
           )}
           <div className="text-sm" role="status" aria-live="polite">
             {pending > 0
-              ? `Preparing interview-ready answers: ${done} of ${total} done. The local model takes 2–4 minutes per question; you can leave this page.`
+              ? `Preparing interview-ready answers: ${done} of ${total} done. The local model takes ${SHOW_SCORES ? '2–4 minutes' : 'under a minute'} per question; you can leave this page.`
               : `${done} of ${total} question${total === 1 ? '' : 's'} ready${failed ? `, ${failed} failed` : ''}.`}
           </div>
           {notEvaluated && report.status === 'completed' && (

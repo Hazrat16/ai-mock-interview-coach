@@ -14,6 +14,7 @@ import { StructuredOutputError } from './llm/structured';
 import { healthRoutes } from './routes/health';
 import { JobRunner } from './evaluation/jobRunner';
 import { evaluationQueue, evaluationRoutes } from './routes/evaluations';
+import { historyRoutes } from './routes/history';
 import { llmRoutes } from './routes/llm';
 import { speechRoutes } from './routes/speech';
 import { sttRoutes } from './routes/stt';
@@ -110,6 +111,7 @@ export async function buildApp(env: Env, db: Db, version: string, options: AppOp
     () => runner.wake(),
   );
   evaluationRoutes(app, db, queue);
+  historyRoutes(app, db);
   if (env.NODE_ENV !== 'test') {
     app.addHook('onListen', async () => runner.start());
     app.addHook('onClose', async () => runner.stop());

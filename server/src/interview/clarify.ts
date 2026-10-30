@@ -2,7 +2,7 @@
 // treating the reply as an answer and moving on.
 import { z } from 'zod';
 import type { InterviewConfig } from '@shared/schemas/interview';
-import { OllamaError, type OllamaClient } from '../llm/ollamaClient';
+import { OllamaError, type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
 import { StructuredOutputError, structuredChat } from '../llm/structured';
 
 /** Longer replies are answers, even if they say "I don't understand" somewhere. */
@@ -72,7 +72,7 @@ export async function rephrase(
           ].join('\n'),
         },
       ],
-      options: { temperature: 0.3, num_ctx: 4096, num_predict: 120, num_thread: opts.numThread },
+      options: { temperature: 0.3, num_ctx: NUM_CTX, num_predict: 120, num_thread: opts.numThread },
       keepAlive: '15m',
       timeoutMs: opts.timeoutMs,
     });

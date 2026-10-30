@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DIFFICULTIES, type InterviewConfig } from '@shared/schemas/interview';
-import type { OllamaClient } from '../llm/ollamaClient';
+import { type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
 import { structuredChat } from '../llm/structured';
 
 const generatedSchema = z.object({
@@ -45,7 +45,7 @@ export async function generateQuestions(
       },
       { role: 'user', content: prompt },
     ],
-    options: { temperature: 0.8, num_ctx: 8192, num_predict: 300 * count, num_thread: opts.numThread },
+    options: { temperature: 0.8, num_ctx: NUM_CTX, num_predict: 300 * count, num_thread: opts.numThread },
     keepAlive: '10m',
     timeoutMs: 240_000,
   });

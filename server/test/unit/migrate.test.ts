@@ -38,7 +38,8 @@ describe('migrate', () => {
   it('is a no-op when already up to date', async () => {
     const db = openMemoryDb();
     await migrate(db);
-    expect(await migrate(db)).toMatchObject({ from: 1, to: 1, backup: undefined });
+    const latest = loadMigrations().at(-1)!.version;
+    expect(await migrate(db)).toMatchObject({ from: latest, to: latest, backup: undefined });
   });
 
   it('rolls back a failing migration and keeps the previous version', async () => {

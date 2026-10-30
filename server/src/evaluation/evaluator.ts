@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import type { EvaluationResult } from '@shared/schemas/evaluation';
 import type { InterviewConfig } from '@shared/schemas/interview';
-import type { ChatMessage, OllamaClient } from '../llm/ollamaClient';
+import { type ChatMessage, type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
 import { structuredChat } from '../llm/structured';
 import { quoteSupported } from './evidence';
 import type { Rubric } from './rubrics';
@@ -163,7 +163,7 @@ export async function evaluate(
     schema: modelSchema(input.rubric),
     messages: buildMessages(input),
     // Low temperature and a fixed seed: the same answer should get the same scores (checked in M9).
-    options: { temperature: 0.1, seed: opts.seed ?? 42, num_ctx: 8192, num_predict: 2000, num_thread: opts.numThread },
+    options: { temperature: 0.1, seed: opts.seed ?? 42, num_ctx: NUM_CTX, num_predict: 2000, num_thread: opts.numThread },
     keepAlive: '5m',
     timeoutMs: opts.timeoutMs ?? 600_000,
     signal: opts.signal,

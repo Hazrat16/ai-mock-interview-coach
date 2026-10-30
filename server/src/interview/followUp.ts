@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { InterviewConfig } from '@shared/schemas/interview';
-import { type ChatMessage, OllamaError, type OllamaClient } from '../llm/ollamaClient';
+import { type ChatMessage, OllamaError, type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
 import { StructuredOutputError, structuredChat } from '../llm/structured';
 
 /** Bump when the prompt or schema changes, so stored results can be traced to it. */
@@ -133,7 +133,7 @@ export async function decide(
       model: opts.model,
       schema: decisionSchema,
       messages: buildMessages(ctx),
-      options: { temperature: 0.4, num_ctx: 8192, num_predict: 200, num_thread: opts.numThread },
+      options: { temperature: 0.4, num_ctx: NUM_CTX, num_predict: 200, num_thread: opts.numThread },
       keepAlive: '15m',
       timeoutMs: opts.timeoutMs,
     });
@@ -158,7 +158,7 @@ export async function warmUp(llm: OllamaClient, model: string, numThread?: numbe
         { role: 'system', content: FOLLOW_UP_SYSTEM },
         { role: 'user', content: 'Reply with {}' },
       ],
-      options: { num_ctx: 8192, num_predict: 1, num_thread: numThread },
+      options: { num_ctx: NUM_CTX, num_predict: 1, num_thread: numThread },
       keepAlive: '15m',
       timeoutMs: 120_000,
     })

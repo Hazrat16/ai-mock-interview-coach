@@ -1,16 +1,19 @@
 import { ChartLine, History, LayoutDashboard, Mic, Settings as SettingsIcon } from 'lucide-react';
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router';
 import { cn } from '@/lib/utils';
+import { Dashboard } from '@/pages/Dashboard';
+import { History as HistoryPage } from '@/pages/History';
 import { Interview } from '@/pages/Interview';
 import { NewInterview } from '@/pages/NewInterview';
+import { Progress } from '@/pages/Progress';
 import { Report } from '@/pages/Report';
 import { Settings } from '@/pages/Settings';
 
 const nav = [
-  { to: '/', label: 'Dashboard', Icon: LayoutDashboard, page: <ComingSoon title="Dashboard" milestone="M10" /> },
+  { to: '/', label: 'Dashboard', Icon: LayoutDashboard, page: <Dashboard /> },
   { to: '/interview/new', label: 'New interview', Icon: Mic, page: <NewInterview /> },
-  { to: '/history', label: 'History', Icon: History, page: <ComingSoon title="History" milestone="M10" /> },
-  { to: '/progress', label: 'Progress', Icon: ChartLine, page: <ComingSoon title="Progress" milestone="M10" /> },
+  { to: '/history', label: 'History', Icon: History, page: <HistoryPage /> },
+  { to: '/progress', label: 'Progress', Icon: ChartLine, page: <Progress /> },
   { to: '/settings', label: 'Settings', Icon: SettingsIcon, page: <Settings /> },
 ];
 

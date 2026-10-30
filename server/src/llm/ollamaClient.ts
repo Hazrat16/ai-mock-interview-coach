@@ -56,6 +56,13 @@ export class OllamaTimeoutError extends OllamaError {}
 export class ModelMissingError extends OllamaError {}
 
 const DEFAULT_TIMEOUT_MS = 120_000;
+
+/**
+ * Context size for every request, equal to OLLAMA_CONTEXT_LENGTH in compose.yaml. Ollama reloads a model
+ * (~6 s) whenever a request asks for a different size, and a request cancelled during such a reload (a
+ * follow-up decision timing out) once left Ollama stuck until restarted.
+ */
+export const NUM_CTX = 8192;
 const ms = (ns: number | undefined) => Math.round((ns ?? 0) / 1e6);
 
 type OllamaChatResponse = {

@@ -2,7 +2,7 @@
 // criteria, quotes and feedback (used while scoring is off; see shared/features.ts).
 import { z } from 'zod';
 import type { EvaluationResult } from '@shared/schemas/evaluation';
-import type { OllamaClient } from '../llm/ollamaClient';
+import { type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
 import { structuredChat } from '../llm/structured';
 import type { EvaluationInput } from './evaluator';
 
@@ -56,7 +56,7 @@ export async function prepareReadyAnswer(
     model: opts.model,
     schema,
     messages: buildReadyAnswerMessages(input),
-    options: { temperature: 0.2, seed: 42, num_ctx: 4096, num_predict: 600, num_thread: opts.numThread },
+    options: { temperature: 0.2, seed: 42, num_ctx: NUM_CTX, num_predict: 600, num_thread: opts.numThread },
     keepAlive: '5m',
     timeoutMs: opts.timeoutMs ?? 300_000,
     signal: opts.signal,
