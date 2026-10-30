@@ -10,6 +10,8 @@ import {
 } from '../../src/interview/followUp';
 import { PROBES } from '../../src/interview/phrases';
 
+const probes = PROBES.experience; // the question below is behavioral
+
 const main = 'Tell me about a time you disagreed with a teammate about a technical decision. What happened?';
 const decision = (follow_up: string | null, action: Decision['action'] = 'follow_up'): Decision => ({
   action,
@@ -95,19 +97,19 @@ describe('chooseFollowUp', () => {
 
   it("uses the model's own follow-up when it is new", () => {
     const own = 'What did you do when your teammate still disagreed after the benchmark?';
-    expect(chooseFollowUp(weak(own), [main])).toBe(own);
+    expect(chooseFollowUp(weak(own), [main], probes)).toBe(own);
   });
 
   it('asks a fixed probe for a weak answer when the model only rephrased the main question', () => {
-    expect(chooseFollowUp(weak(rephrased), [main])).toBe(PROBES[0]);
+    expect(chooseFollowUp(weak(rephrased), [main], probes)).toBe(probes[0]);
     // The second probe if the first was already asked on this question; none after that.
-    expect(chooseFollowUp(weak(rephrased), [main, PROBES[0]!])).toBe(PROBES[1]);
-    expect(chooseFollowUp(weak(rephrased), [main, ...PROBES])).toBeNull();
+    expect(chooseFollowUp(weak(rephrased), [main, probes[0]!], probes)).toBe(probes[1]);
+    expect(chooseFollowUp(weak(rephrased), [main, ...probes], probes)).toBeNull();
   });
 
   it('does not probe when the answer was not weak, or the model chose "next"', () => {
-    expect(chooseFollowUp(decision(rephrased), [main])).toBeNull(); // quality ok
-    expect(chooseFollowUp({ ...weak(null), action: 'next' }, [main])).toBeNull();
+    expect(chooseFollowUp(decision(rephrased), [main], probes)).toBeNull(); // quality ok
+    expect(chooseFollowUp({ ...weak(null), action: 'next' }, [main], probes)).toBeNull();
   });
 });
 

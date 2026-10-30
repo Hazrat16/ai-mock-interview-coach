@@ -38,19 +38,46 @@ export const LAST_LEAD = 'And the last question.';
 
 /**
  * Asked when the model judged the answer weak and wanted a follow-up, but its wording only repeated the main
- * question ("Can you give a specific example of <main question>?"). Neutral, and works for any question type.
+ * question ("Can you give a specific example of <main question>?"). Neutral; one set for questions about your
+ * experience, one for questions about how things work (asking "what you did yourself" after "Explain the
+ * event loop" made no sense).
  */
-export const PROBES = [
-  'Could you walk me through one specific example, and what you did yourself?',
-  'Can you make that more concrete? Pick one real situation and tell me what happened.',
-];
+export const PROBES = {
+  experience: [
+    'Could you walk me through one specific example, and what you did yourself?',
+    'Can you make that more concrete? Pick one real situation and tell me what happened.',
+  ],
+  technical: [
+    'Could you make that more concrete? Walk me through a specific example, step by step.',
+    'What would you watch out for in practice? Think of trade-offs or edge cases.',
+  ],
+};
+
+/** The probes in simpler words, for "I don't understand" (the model reworded them into the main question). */
+export const PROBES_REWORDED: Record<string, string> = {
+  [PROBES.experience[0]!]: 'Think of one real time this happened. What did you do yourself, step by step?',
+  [PROBES.experience[1]!]: 'Tell me about one real situation. What happened, and what was the result?',
+  [PROBES.technical[0]!]: 'Pick one small example and tell me what happens in it, one step at a time.',
+  [PROBES.technical[1]!]: 'When you use this in a real project, what can go wrong, or what does it cost you?',
+};
+
+export const probesFor = (type: InterviewConfig['interviewType']) =>
+  type === 'hr' || type === 'behavioral' ? PROBES.experience : PROBES.technical;
+
+/** Said before the question is asked again after "Sorry, I don't understand the question." */
+export const CLARIFY_REPHRASED = 'Sure, let me put it another way.';
+export const CLARIFY_REPEATED = 'Sure, here it is again.';
 
 /** Every fixed sentence the interviewer says, for the text-to-speech cache. */
 export const FIXED_PHRASES = [
   ...ACKS,
   ...LEADS,
   LAST_LEAD,
-  ...PROBES,
+  ...PROBES.experience,
+  ...PROBES.technical,
+  ...Object.values(PROBES_REWORDED),
+  CLARIFY_REPHRASED,
+  CLARIFY_REPEATED,
   "That's the end of the interview.",
   'Thank you for your time.',
 ];

@@ -200,6 +200,11 @@ export function updateTurnInsight(db: Db, turnId: string, summary: string, quali
   db.prepare('UPDATE turns SET summary = ?, quality_signal = ? WHERE id = ?').run(summary, quality, turnId);
 }
 
+/** The question as it was last asked (reworded after "I don't understand"). */
+export function updateTurnQuestion(db: Db, turnId: string, questionText: string) {
+  db.prepare('UPDATE turns SET question_text = ? WHERE id = ?').run(questionText, turnId);
+}
+
 export function insertAnswer(db: Db, a: AnswerRequest & { turnId: string }): string {
   const id = newId();
   const wordCount = a.transcript.split(/\s+/).filter(Boolean).length;

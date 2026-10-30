@@ -166,6 +166,32 @@ describe('interview session', () => {
     expect(r.next).toMatchObject({ kind: 'main', questionNumber: 2 });
   });
 
+  it('asks the question again in simpler words when the candidate does not understand it', async () => {
+    const reworded = 'Tell me about one time you and a teammate disagreed, and how you settled it.';
+    await setup([
+      chatReply(JSON.stringify({ topic: 'disagreeing with a teammate', question: reworded })),
+      chatReply('not json'), // rewording fails twice (with the repair attempt): the question is repeated as is
+      chatReply('not json'),
+      decision({ action: 'next' }),
+    ]);
+    const s = await startNew();
+    const turnId = s.current!.id;
+
+    const r1 = await result(await answer(s.id, turnId, "Sorry, I don't understand the question."));
+    expect(r1).toMatchObject({ ack: 'Sure, let me put it another way.', lead: '', closing: null });
+    expect(r1.next).toMatchObject({ id: turnId, kind: 'main', questionNumber: 1, text: reworded });
+
+    const r2 = await result(await answer(s.id, turnId, 'Could you repeat that, please?'));
+    expect(r2).toMatchObject({ ack: 'Sure, here it is again.', next: { id: turnId, text: reworded } });
+
+    // After two rewordings the reply counts as an answer (a misdetection can not loop forever).
+    const r3 = await result(await answer(s.id, turnId, 'What do you mean?'));
+    expect(r3.next).toMatchObject({ kind: 'main', questionNumber: 2 });
+
+    const detail = sessionDetailSchema.parse((await app.inject({ url: `/api/sessions/${s.id}` })).json());
+    expect(detail.turns[0]).toMatchObject({ text: reworded, answer: { transcript: 'What do you mean?' } });
+  });
+
   it('rejects a second answer to the same question', async () => {
     await setup([decision({ action: 'next' })]);
     const s = await startNew();

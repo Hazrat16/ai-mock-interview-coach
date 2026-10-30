@@ -10,7 +10,7 @@ import type { Rubric } from './rubrics';
 import { overallScore } from './scoring';
 
 /** Bump when the prompt or the output schema changes. */
-export const EVALUATION_PROMPT_VERSION = 1;
+export const EVALUATION_PROMPT_VERSION = 2;
 
 export type Exchange = { kind: 'main' | 'follow_up'; question: string; answer: string | null };
 
@@ -32,6 +32,8 @@ const MAX_TRANSCRIPT_CHARS = 6000; // ~1500 tokens; long answers are clipped to 
 export function modelSchema(rubric: Rubric) {
   const keys = rubric.criteria.map((c) => c.key) as [string, ...string[]];
   return z.object({
+    // Written first: having named what the recognizer misheard, the model stops counting it as a mistake.
+    misheard: z.array(z.object({ heard: z.string(), meant: z.string() })).max(12),
     criteria: z
       .array(
         z.object({
@@ -73,7 +75,7 @@ ${rubric.notes}
 
 Rules:
 - The exchange may include follow-up questions; judge the candidate's answers together, as one answer to the main question.
-- Judge content only. The answers are speech transcripts: never penalize filler words, accent, grammar or transcription errors.
+- Judge content only. The answers are automatic speech transcripts, and speech recognition often mishears technical terms as similar-sounding words (for example "rest condition" for race condition, "Java stripped" for JavaScript, "beetries" for B-trees, "my school" for MySQL or NoSQL). First list them in "misheard" (what the transcript says, and the term meant), then read them as that term everywhere. Never list them as mistakes, and never lower any score, including clarity, for them, or for filler words, accent or grammar. Clarity is about how the answer is organized.
 - For each criterion, first give evidence: up to 3 short quotes copied exactly from the candidate's words. Then the rationale (one or two sentences). Then the score. If there is no evidence, use an empty list and a score of at most 1.
 - Be strict but fair for a ${level} candidate.
 - strengths, mistakes, missing_concepts, suggestions: short, specific, actionable sentences. missing_concepts: important points the answer did not cover.

@@ -5,6 +5,7 @@
 // Options: --models base.en,small.en-q5_1 (default: all downloaded)  --no-prompt-test
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { questionForSentence } from '../shared/speechCheck';
 import { STT_MODELS } from '../shared/sttModels';
 import { wordErrorRate } from '../shared/text/wer';
 import { SampleStore } from '../server/src/speech/samples';
@@ -73,7 +74,7 @@ async function loadModel(file: string) {
   if (!res.ok) throw new Error(`could not load ${file}: HTTP ${res.status} ${await res.text()}`);
 }
 
-async function run(clips: Clip[], usePrompt: boolean) {
+async function run(clips: Clip[], usePrompt: boolean, minLogprob?: number) {
   let errors = 0;
   let words = 0;
   const bySetup = new Map<string, { errors: number; words: number }>();
@@ -85,7 +86,7 @@ async function run(clips: Clip[], usePrompt: boolean) {
     const raw = await whisper.transcribe(c.wav, { prompt: usePrompt ? c.prompt : undefined, timeoutMs: 120_000 });
     ms += performance.now() - t;
     audio += c.seconds;
-    const text = buildTranscript(raw.segments).text;
+    const text = buildTranscript(raw.segments, minLogprob).text;
     const r = wordErrorRate(c.reference, text);
     errors += r.errors;
     words += r.referenceWords;
@@ -127,7 +128,8 @@ const store = new SampleStore(join(process.env.DATA_DIR ?? '', 'stt-samples'));
 const own: Clip[] = store.list().samples.map((s) => {
   const wav = readFileSync(store.wavPath(s.id));
   const setup = `${s.mic ?? 'unknown mic'}, processing ${s.processing === false ? 'off' : 'on'}`;
-  return { label: `own ${s.id}`, wav, reference: s.reference, seconds: s.durationSec, setup };
+  const prompt = questionForSentence(s.reference);
+  return { label: `own ${s.id}`, wav, reference: s.reference, prompt, seconds: s.durationSec, setup };
 });
 const totalSec = loopback.reduce((a, c) => a + c.seconds, 0);
 console.log(
@@ -141,6 +143,7 @@ const models = STT_MODELS.filter((m) => existsSync(join(modelsDir, m.file)) && (
 const rows: string[] = [];
 const setupRows: string[] = [];
 const promptRows: string[] = [];
+const ownRows: string[] = [];
 const notes: string[] = [];
 for (const m of models) {
   process.stdout.write(`${m.id}… `);
@@ -161,6 +164,16 @@ for (const m of models) {
     setupRows.push(`| ${m.id} | ${setup} | ${((100 * g.errors) / g.words).toFixed(1)}% |`);
   }
   if (mine?.worst.length) notes.push(`  ${m.id}, your recordings over 10% WER:`, ...mine.worst);
+  if (mine) {
+    // What would help your voice: the question as a vocabulary hint, keeping low-confidence segments, both.
+    const hinted = await run(own, true);
+    const keepAll = await run(own, false, -Infinity);
+    const both = await run(own, true, -Infinity);
+    const pct = (r: { wer: number }) => `${(r.wer * 100).toFixed(1)}%`;
+    ownRows.push(`| ${m.id} | ${pct(mine)} | ${pct(hinted)} | ${pct(keepAll)} | ${pct(both)} |`);
+    if (hinted.worst.length)
+      notes.push(`  ${m.id} with the question as hint, your recordings over 10% WER:`, ...hinted.worst);
+  }
   if (!args.includes('--no-prompt-test')) {
     const withPrompt = await run(loopback, true);
     promptRows.push(`| ${m.id} | ${(lb.wer * 100).toFixed(1)}% | ${(withPrompt.wer * 100).toFixed(1)}% |`);
@@ -195,6 +208,10 @@ if (own.length) {
   console.log('| Model | Setup | WER |');
   console.log('|---|---|---|');
   for (const r of setupRows) console.log(r);
+  console.log(`\nYour recordings: what helps (WER; lower is better)\n`);
+  console.log('| Model | As in interviews | Question as hint | Keep low-confidence parts | Both |');
+  console.log('|---|---|---|---|---|');
+  for (const r of ownRows) console.log(r);
 }
 if (notes.length) console.log(`\nClips with errors:\n${notes.join('\n')}`);
 console.log(`\nDefault model ${defaultModel} reloaded.`);

@@ -126,6 +126,8 @@ Every milestone ends with this **Definition of Done**:
 **Tests:** scoring math; rubric weights sum to 1; evidence fuzzy matching; schema rejects out-of-range values; job runner survives a simulated crash; live: one real evaluation per interview type.
 **Acceptance:** R7, R8, R9 met; evaluation time per answer recorded.
 **Implemented as (M8):** one evaluation per main question *including its follow-ups* (scoring a follow-up answer alone against the full rubric would be unfair); skill-profile updates are left to M10, which reads `evaluation_scores.skill_key`. Results: [docs/benchmarks/2026-10-30-evaluation.md](../benchmarks/2026-10-30-evaluation.md).
+
+**Fixes after the first real use (M8):** "Sorry, I don't understand the question" (short replies asking to repeat or explain) is no longer taken as an answer: the interviewer rewords the same question (granite, 3.5-7 s; fixed rewordings for the fixed probes), at most twice per question. The fixed probes now depend on the interview type (technical questions no longer get "what you did yourself"). Evaluation prompt v2 for misheard technical terms. Speech check gained technical sentences, and `make bench-stt` compares fixes on your recordings.
 **Failures:** truncated JSON (raise `num_predict`); hallucinated quotes (flagged); evaluation too slow (shorter example answer, fallback model).
 
 ## M9. Scoring consistency harness

@@ -35,7 +35,7 @@ export type RunnerDeps = {
 };
 
 /** Everything the evaluator needs for one main question: its exchange, config and expected points. */
-function loadInput(db: Db, evaluationId: string): { input: EvaluationInput; model: string } {
+export function loadInput(db: Db, evaluationId: string): { input: EvaluationInput; model: string } {
   const ev = getEvaluation(db, evaluationId);
   if (!ev) throw new Error(`evaluation ${evaluationId} not found`);
   const rubric = rubricByKey(ev.rubricKey);

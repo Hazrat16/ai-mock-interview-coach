@@ -20,6 +20,13 @@ export function buildReport(db: Db, sessionId: string): SessionReport {
     .all(sessionId) as { turn_id: string; input_method: 'voice' | 'typed_fallback'; delivery_json: string | null }[];
   const answerMeta = new Map(answerRows.map((r) => [r.turn_id, r]));
   const evaluations = evaluationsForSession(db, sessionId);
+  const expectedPoints = db.prepare('SELECT expected_points_json FROM questions WHERE id = ?');
+  const keyPoints = (questionId: string | null) => {
+    const row = questionId
+      ? (expectedPoints.get(questionId) as { expected_points_json: string } | undefined)
+      : undefined;
+    return row ? (JSON.parse(row.expected_points_json) as string[]) : [];
+  };
 
   const items: SessionReport['items'] = [];
   let questionNumber = 0;
@@ -48,6 +55,7 @@ export function buildReport(db: Db, sessionId: string): SessionReport {
     items.push({
       questionNumber,
       thread,
+      keyPoints: keyPoints(main.questionId),
       evaluation: main.answer ? (evaluations.get(main.answer.id) ?? null) : null,
     });
   }

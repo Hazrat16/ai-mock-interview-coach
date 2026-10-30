@@ -2,6 +2,12 @@ import { CircleAlert, Loader2, RotateCcw } from 'lucide-react';
 import type { EvaluationView as Evaluation } from '@shared/schemas/evaluation';
 import { Button } from '@/components/ui/button';
 
+/**
+ * Scores are hidden for now: the transcripts still mishear technical terms, so the marking is not reliable
+ * yet. The evaluation still runs (it writes the interview-ready answer); set to true to show scores again.
+ */
+export const SHOW_SCORES = false;
+
 /** Colour by band: below 50 needs work, 75+ strong. Practice scores, not a hiring verdict. */
 export function scoreClass(score: number) {
   if (score >= 75) return 'text-emerald-700 dark:text-emerald-400';
@@ -40,8 +46,8 @@ export function EvaluationView({ evaluation, onRetry }: { evaluation: Evaluation
       <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
         <Loader2 className="size-4 animate-spin" aria-hidden />
         {e.status === 'running'
-          ? 'Evaluating this answer with the local model… (usually 1–3 minutes)'
-          : 'Waiting to be evaluated.'}
+          ? 'Writing the interview-ready answer with the local model… (usually 2–4 minutes)'
+          : 'Waiting for the local model.'}
         {e.status === 'pending' && e.error && <span> Last attempt: {e.error}</span>}
       </p>
     );
@@ -57,6 +63,14 @@ export function EvaluationView({ evaluation, onRetry }: { evaluation: Evaluation
     );
   }
   const r = e.result;
+  if (!SHOW_SCORES) {
+    return (
+      <div className="space-y-1">
+        <h4 className="text-sm font-medium">Interview-ready answer</h4>
+        <p className="whitespace-pre-wrap text-sm text-muted-foreground">{r.exampleAnswer}</p>
+      </div>
+    );
+  }
   return (
     <div className="space-y-5">
       <div className="flex items-baseline gap-3">

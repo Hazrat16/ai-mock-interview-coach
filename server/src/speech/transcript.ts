@@ -21,19 +21,20 @@ export type Segment = RawSegment & {
   reason?: 'no_speech' | 'low_confidence' | 'hallucination' | 'empty';
 };
 
-export function classifySegment(s: RawSegment): Segment {
+export function classifySegment(s: RawSegment, minLogprob = LOGPROB_MIN): Segment {
   const text = s.text.replace(/\[[^\]]*\]|\([^)]*\)/g, (m) => (HALLUCINATIONS.some((h) => h.test(m)) ? '' : m)).trim();
   if (!/[\p{L}\p{N}]/u.test(text)) return { ...s, text, kept: false, reason: 'empty' };
   if (HALLUCINATIONS.some((h) => h.test(text))) return { ...s, text, kept: false, reason: 'hallucination' };
   if (s.noSpeechProb > NO_SPEECH_MAX) return { ...s, text, kept: false, reason: 'no_speech' };
   if (SUSPICIOUS_ON_QUIET.test(text) && s.noSpeechProb > 0.3)
     return { ...s, text, kept: false, reason: 'hallucination' };
-  if (s.avgLogprob < LOGPROB_MIN) return { ...s, text, kept: false, reason: 'low_confidence' };
+  if (s.avgLogprob < minLogprob) return { ...s, text, kept: false, reason: 'low_confidence' };
   return { ...s, text, kept: true };
 }
 
-export function buildTranscript(segments: RawSegment[]) {
-  const all = segments.map(classifySegment);
+/** `minLogprob`: confidence threshold (the benchmark compares it with -Infinity, i.e. off). */
+export function buildTranscript(segments: RawSegment[], minLogprob = LOGPROB_MIN) {
+  const all = segments.map((s) => classifySegment(s, minLogprob));
   const text = all
     .filter((s) => s.kept)
     .map((s) => s.text)

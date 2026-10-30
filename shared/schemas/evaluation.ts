@@ -54,6 +54,8 @@ export const reportItemSchema = z.object({
         .nullable(),
     }),
   ),
+  /** What a good answer covers, from the question bank (empty for a question no longer in the bank). */
+  keyPoints: z.array(z.string()),
   evaluation: evaluationViewSchema.nullable(),
 });
 

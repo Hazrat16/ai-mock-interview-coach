@@ -57,12 +57,15 @@ test('spoken interview: questions are read aloud, answers are heard, transcribed
       2,
     ),
   );
-  // The report: evaluations run in the background (qwen, ~2 min per question), then scores appear.
-  await page.getByRole('link', { name: 'View report' }).click();
-  await expect(page.getByText(/practice scores from a small AI model/)).toBeVisible();
+  // The report opens by itself after the closing. Key points come from the bank right away; the
+  // interview-ready answers from the evaluations in the background (qwen, ~3 min per question).
+  await page.waitForURL(/\/report$/, { timeout: 60_000 });
   await expect(page.getByText('How you spoke')).toBeVisible();
+  await expect(page.getByText('Key points to mention').first()).toBeVisible();
+  await expect(page.getByText('average score')).toBeHidden(); // scores are hidden for now (SHOW_SCORES)
   const evalStart = Date.now();
-  await expect(page.getByText(/2 of 2 questions evaluated/)).toBeVisible({ timeout: 9 * 60_000 });
+  await expect(page.getByText(/2 of 2 questions ready/)).toBeVisible({ timeout: 9 * 60_000 });
+  await expect(page.getByText('Interview-ready answer')).toHaveCount(2);
   const evalSeconds = Math.round((Date.now() - evalStart) / 1000);
   const report = (await (await page.request.get(`/api/sessions/${sessionId}/report`)).json()) as {
     average: number;

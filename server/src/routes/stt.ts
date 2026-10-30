@@ -39,6 +39,12 @@ export function sttRoutes(app: FastifyInstance, whisper: WhisperClient, model: s
     const raw = await whisper.transcribe(req.body as Buffer, { prompt });
     const ms = Math.round(performance.now() - started);
     const { text, words, segments } = buildTranscript(raw.segments);
+    // In the terminal running the app (local only): shows whether the filter removes real words.
+    for (const g of segments.filter((x) => !x.kept && x.reason !== 'empty')) {
+      console.log(
+        `stt: dropped (${g.reason}, no_speech ${g.noSpeechProb.toFixed(2)}, logprob ${g.avgLogprob.toFixed(2)}): ${g.text}`,
+      );
+    }
     return {
       text,
       words,

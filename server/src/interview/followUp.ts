@@ -2,7 +2,6 @@ import { z } from 'zod';
 import type { InterviewConfig } from '@shared/schemas/interview';
 import { type ChatMessage, OllamaError, type OllamaClient } from '../llm/ollamaClient';
 import { StructuredOutputError, structuredChat } from '../llm/structured';
-import { PROBES } from './phrases';
 
 /** Bump when the prompt or schema changes, so stored results can be traced to it. */
 export const FOLLOW_UP_PROMPT_VERSION = 2;
@@ -98,16 +97,17 @@ const isRepeat = (a: string, b: string) => {
   return s.overlap >= 0.6 && s.common >= 3;
 };
 
-/** A follow-up is used only if it is a real, new question; otherwise the interview moves on. */
 /**
  * The follow-up to ask, if any: the model's own when it is new, otherwise (weak answer, model's wording
- * rejected) a fixed probe that was not asked yet on this question.
+ * rejected) one of `probes` (see probesFor) not asked yet on this question.
  */
-export function chooseFollowUp(decision: Decision, previous: string[]): string | null {
+export function chooseFollowUp(decision: Decision, previous: string[], probes: string[]): string | null {
   const own = acceptFollowUp(decision, previous);
   if (own || decision.action !== 'follow_up' || decision.quality_signal !== 'weak') return own;
-  return PROBES.find((p) => !previous.includes(p)) ?? null;
+  return probes.find((p) => !previous.includes(p)) ?? null;
 }
+
+/** A follow-up is used only if it is a real, new question; otherwise the interview moves on. */
 
 export function acceptFollowUp(decision: Decision, previous: string[]): string | null {
   const q = decision.follow_up?.trim();

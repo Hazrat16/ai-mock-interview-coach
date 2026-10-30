@@ -1,6 +1,6 @@
 import { Keyboard, Mic, RotateCcw, Square, Volume2 } from 'lucide-react';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { type SessionDetail, sessionDetailSchema, turnResultSchema } from '@shared/schemas/interview';
 import { type Settings, settingsSchema } from '@shared/schemas/settings';
 import { player } from '@/audio/player';
@@ -52,13 +52,18 @@ function Transcript({ log }: { log: LogEntry[] }) {
   );
 }
 
-/** What the interviewer says aloud in this state, keyed so it is spoken once per turn. */
+/**
+ * Identifies one asking of a question. The log grows with every reply, so a question asked again after
+ * "I don't understand" (same turn) counts as new.
+ */
+const askingKey = (state: { current: { id: string }; log: unknown[] }) => `${state.current.id}:${state.log.length}`;
+
+/** What the interviewer says aloud in this state, keyed so it is spoken once per asking. */
 function utteranceOf(state: InterviewState): { key: string; text: string } | undefined {
   if (state.phase === 'answering' || state.phase === 'deciding') {
-    return { key: state.current.id, text: [state.speech, state.current.text].filter(Boolean).join(' ') };
+    return { key: askingKey(state), text: [state.speech, state.current.text].filter(Boolean).join(' ') };
   }
-  if (state.phase === 'completed' && state.closing) return { key: 'closing', text: state.closing };
-  return undefined;
+  return undefined; // the closing is spoken by the effect that then opens the report
 }
 
 /** Speaking status and controls. The text is always on screen, so audio problems never block the interview. */
@@ -185,6 +190,20 @@ export function Interview() {
     // markReplyAudio: the closing after a spoken last answer completes that turn's latency measurement.
     if (speakOn && utteranceText) void player.speak(utteranceText, { onFirstAudio: () => markReplyAudio() });
   }, [speakOn, utteranceKey, utteranceText]);
+  // A finished interview (all questions, or ended early with answers) goes to its report, after the closing.
+  const navigate = useNavigate();
+  const closing = state.phase === 'completed' ? state.closing : null;
+  const finished = state.phase === 'completed' && (closing !== null || state.detail.status === 'completed');
+  useEffect(() => {
+    if (!finished || speakOn === undefined) return;
+    let active = true;
+    const open = () => active && void navigate(`/interview/${id}/report`, { replace: true });
+    if (speakOn && closing) void player.speak(closing, { onFirstAudio: () => markReplyAudio() }).then(open);
+    else open();
+    return () => {
+      active = false;
+    };
+  }, [finished, closing, speakOn, id, navigate]);
   useEffect(
     () => () => {
       player.stop(); // leaving the page silences the interviewer
@@ -363,7 +382,7 @@ export function Interview() {
             <p className="text-lg">{state.closing ?? 'This interview has ended.'}</p>
             {state.closing && <VoiceControls enabled={!!speakOn} />}
             <p className="text-sm text-muted-foreground">
-              Your answers are now evaluated by the local model in the background (1–3 minutes per question).
+              Your report opens next: interview-ready answers and the key points to mention for each question.
             </p>
           </CardContent>
         </Card>
@@ -458,7 +477,7 @@ export function Interview() {
 
       {voiceTurn ? (
         <VoiceAnswer
-          key={current.id}
+          key={askingKey(state)}
           utterance={[speech, current.text].filter(Boolean).join(' ')}
           speakOn={speakOn ?? true}
           input={voice.input}

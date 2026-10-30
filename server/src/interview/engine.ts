@@ -24,13 +24,25 @@ import {
   listSessions,
   setStatus,
   updateTurnInsight,
+  updateTurnQuestion,
 } from '../db/repos/sessions';
 import { conflict, notFound } from '../errors';
 import type { OllamaClient } from '../llm/ollamaClient';
+import { isClarificationRequest, rephrase } from './clarify';
 import { chooseFollowUp, decide, warmUp } from './followUp';
 import { generateQuestions } from './generator';
 import { planQuestions } from './planner';
-import { ACKS, CLOSING, intro, lead, pick } from './phrases';
+import {
+  ACKS,
+  CLARIFY_REPEATED,
+  CLARIFY_REPHRASED,
+  CLOSING,
+  PROBES_REWORDED,
+  intro,
+  lead,
+  pick,
+  probesFor,
+} from './phrases';
 
 export type EngineDeps = {
   db: Db;
@@ -56,7 +68,13 @@ type CreateInput = {
 
 const OPEN: SessionStatus[] = ['planned', 'in_progress', 'paused'];
 
+/** After this many rewordings of one question, the reply counts as an answer (no endless loop on a misdetection). */
+const MAX_CLARIFICATIONS = 2;
+
 export class InterviewEngine {
+  /** Rewordings per turn. In memory: after a restart the limit simply starts over. */
+  private readonly clarifications = new Map<string, number>();
+
   constructor(private readonly deps: EngineDeps) {}
 
   private get db() {
@@ -142,6 +160,12 @@ export class InterviewEngine {
     const session = this.session(sessionId);
     const turns = getTurns(this.db, sessionId);
     const turn = this.openTurn(session, turns, turnId);
+    const asked = this.clarifications.get(turnId) ?? 0;
+    if (asked < MAX_CLARIFICATIONS && isClarificationRequest(body.transcript)) {
+      this.clarifications.set(turnId, asked + 1);
+      const main = turn.parentTurnId ? turns.find((t) => t.id === turn.parentTurnId) : undefined;
+      return this.askAgain(session, turn, body.transcript, main?.questionText);
+    }
     try {
       insertAnswer(this.db, { turnId, ...body });
     } catch (err) {
@@ -178,7 +202,11 @@ export class InterviewEngine {
       this.deps.log?.(error ? `follow-up decision failed after ${ms} ms: ${error}` : `follow-up decision in ${ms} ms`);
       if (decision) {
         updateTurnInsight(this.db, main.id, decision.summary, decision.quality_signal);
-        followUp = chooseFollowUp(decision, [main.questionText, ...thread.map((t) => t.questionText)]);
+        followUp = chooseFollowUp(
+          decision,
+          [main.questionText, ...thread.map((t) => t.questionText)],
+          probesFor(session.config.interviewType),
+        );
       }
     }
 
@@ -195,6 +223,34 @@ export class InterviewEngine {
       return { ack, lead: '', next: this.view(session, getTurns(this.db, sessionId), id), closing: null };
     }
     return { ack, ...this.advance(session, updated) };
+  }
+
+  /** The candidate asked what the question means: the same turn stays open, asked again in simpler words. */
+  private async askAgain(
+    session: SessionRow,
+    turn: TurnRow,
+    request: string,
+    mainQuestion?: string,
+  ): Promise<TurnResult> {
+    const reworded =
+      PROBES_REWORDED[turn.questionText] ??
+      (await rephrase(
+        this.deps.llm,
+        {
+          model: session.interviewerModel,
+          numThread: this.deps.numThread,
+          timeoutMs: this.deps.decisionTimeoutMs ?? 45_000,
+        },
+        { config: session.config, question: turn.questionText, mainQuestion, request },
+      ));
+    this.deps.log?.(reworded ? 'question reworded on request' : 'question repeated on request (rewording failed)');
+    if (reworded) updateTurnQuestion(this.db, turn.id, reworded);
+    return {
+      ack: reworded ? CLARIFY_REPHRASED : CLARIFY_REPEATED,
+      lead: '',
+      next: this.view(session, getTurns(this.db, session.id), turn.id),
+      closing: null,
+    };
   }
 
   /** Leaves the open question unanswered and moves to the next main question. */

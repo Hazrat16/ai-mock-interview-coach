@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router';
 import { z } from 'zod';
 import { type SessionReport, sessionReportSchema } from '@shared/schemas/evaluation';
 import type { InterviewConfig } from '@shared/schemas/interview';
-import { EvaluationView, scoreClass } from '@/components/report/EvaluationView';
+import { EvaluationView, scoreClass, SHOW_SCORES } from '@/components/report/EvaluationView';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getJson, sendJson } from '@/lib/api';
@@ -118,21 +118,23 @@ export function Report() {
 
       <Card>
         <CardContent className="flex flex-wrap items-center gap-6 pt-6">
-          <div>
-            <div
-              className={`text-4xl font-semibold tabular-nums ${report.average === null ? 'text-muted-foreground' : scoreClass(report.average)}`}
-            >
-              {report.average ?? '–'}
+          {SHOW_SCORES && (
+            <div>
+              <div
+                className={`text-4xl font-semibold tabular-nums ${report.average === null ? 'text-muted-foreground' : scoreClass(report.average)}`}
+              >
+                {report.average ?? '–'}
+              </div>
+              <div className="text-sm text-muted-foreground">average score</div>
             </div>
-            <div className="text-sm text-muted-foreground">average score</div>
-          </div>
+          )}
           <div className="text-sm" role="status" aria-live="polite">
             {pending > 0
-              ? `Evaluating: ${done} of ${total} done. The local model takes 1–3 minutes per question; you can leave this page.`
-              : `${done} of ${total} question${total === 1 ? '' : 's'} evaluated${failed ? `, ${failed} failed` : ''}.`}
+              ? `Preparing interview-ready answers: ${done} of ${total} done. The local model takes 2–4 minutes per question; you can leave this page.`
+              : `${done} of ${total} question${total === 1 ? '' : 's'} ready${failed ? `, ${failed} failed` : ''}.`}
           </div>
           {notEvaluated && report.status === 'completed' && (
-            <Button onClick={() => void act(`/api/sessions/${id}/evaluate`)}>Evaluate this interview</Button>
+            <Button onClick={() => void act(`/api/sessions/${id}/evaluate`)}>Prepare interview-ready answers</Button>
           )}
         </CardContent>
       </Card>
@@ -142,10 +144,12 @@ export function Report() {
         </p>
       )}
 
-      <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-        These are practice scores from a small AI model running on this computer. They can be wrong, and they are not a
-        prediction of how a real interviewer would judge you. Use them to find what to practice next.
-      </p>
+      {SHOW_SCORES && (
+        <p className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+          These are practice scores from a small AI model running on this computer. They can be wrong, and they are not
+          a prediction of how a real interviewer would judge you. Use them to find what to practice next.
+        </p>
+      )}
 
       {report.delivery && <DeliveryPanel d={report.delivery} />}
 
@@ -185,7 +189,17 @@ export function Report() {
                 />
               </div>
             ) : (
-              !item.thread[0]?.answer && <p className="text-sm text-muted-foreground">Not answered, not evaluated.</p>
+              !item.thread[0]?.answer && <p className="text-sm text-muted-foreground">Not answered.</p>
+            )}
+            {item.keyPoints.length > 0 && (
+              <div className="space-y-1 border-t pt-4">
+                <h4 className="text-sm font-medium">Key points to mention</h4>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                  {item.keyPoints.map((p, i) => (
+                    <li key={i}>{p}</li>
+                  ))}
+                </ul>
+              </div>
             )}
           </CardContent>
         </Card>

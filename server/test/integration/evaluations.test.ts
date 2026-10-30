@@ -27,6 +27,7 @@ const KEYS = ['relevance', 'star_structure', 'personal_contribution', 'results_i
 /** A behavioral evaluation as qwen would write it; one quote is invented. */
 const evaluationJson = (score = 3) =>
   JSON.stringify({
+    misheard: [],
     criteria: KEYS.map((key, i) => ({
       key,
       evidence: i === 0 ? ['I ran a benchmark and showed the numbers', 'I led a team of five'] : ['kept one database'],
@@ -124,6 +125,8 @@ describe('evaluation pipeline', () => {
     const id = await finishedInterview();
     let r = await report(id);
     expect(r.progress).toEqual({ done: 0, pending: 2, failed: 0, total: 2 });
+    // Key points come from the question bank, before any evaluation is done.
+    expect(r.items[0]!.keyPoints.length).toBeGreaterThan(0);
     expect(r.items[0]!.evaluation).toMatchObject({
       status: 'pending',
       rubricKey: 'behavioral',

@@ -34,3 +34,15 @@ A vague non-answer ("I usually just work it out with the team. We talk about it 
 - A job interrupted by a crash is re-queued at the next start.
 - Ollama not running: jobs wait and retry every 30 s instead of failing.
 - Evaluations pause while an interview is in progress (activity within 10 minutes), so they never compete with the live interviewer for the LLM.
+
+## First real interview (your voice): penalized for speech recognition errors → prompt v2
+Your spoken technical interview (2026-10-30) was transcribed with many misheard technical terms ("rest condition" for race condition, "Java stripped … even look" for JavaScript event loop, "beetries / ash maps" for B-trees / hash maps). Prompt v1 said "never penalize transcription errors", but qwen3.5:4b listed them as mistakes ("Misnamed the concept as 'Rest condition'") and lowered clarity for them.
+
+Prompt v2 explains that technical terms are often misheard and gives examples, and the reply now **starts with a `misheard` list** (heard → meant) before the criteria (the field-order trick that fixed granite's follow-up decisions). Re-evaluating two of your answers:
+
+| Answer | v1 | Only the rule | v2 (rule + `misheard` first) | Time v1 → v2 |
+|---|---|---|---|---|
+| Race condition | 21 | 25 | 25 | 133 → 174 s |
+| Database index (+ follow-up) | 16 | 16 | 21 | 141 → 198 s |
+
+Better, not solved: the 4B model still sometimes names a misheard term as a mistake, and evaluation takes ~40 s longer per question. The bigger loss cannot be fixed here: words Whisper did not hear are gone (probably "without a mutex" → "without response", so the answer "never names a lock"). Next step is on the speech side: `make bench-stt` now compares the question as a vocabulary hint and keeping low-confidence parts on your recordings ([STT benchmark](2026-10-29-stt.md)).

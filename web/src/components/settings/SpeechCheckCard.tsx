@@ -2,6 +2,7 @@ import { Mic, RotateCcw, Save, Square, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { type SttResult, sttResultSchema, type SttSampleList, sttSampleListSchema } from '@shared/schemas/stt';
+import { SPEECH_CHECK } from '@shared/speechCheck';
 import { wordErrorRate } from '@shared/text/wer';
 import {
   listMicrophones,
@@ -15,15 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { deleteJson, getJson, postWav } from '@/lib/api';
 import { fieldClass } from '@/lib/styles';
-
-// Interview-style sentences with the vocabulary that trips speech recognition: numbers, tools, acronyms.
-const SENTENCES = [
-  'In my last project I reduced the API response time from eight hundred milliseconds to about one hundred and twenty.',
-  'I would store the sessions in Redis and keep the user accounts in PostgreSQL, behind a load balancer.',
-  'When two teammates disagreed about the deadline, I set up a short meeting and we agreed to ship a smaller first version.',
-  'A hash map gives constant time lookups on average, but in the worst case it can degrade to linear time.',
-  'I enjoy working with Docker and Kubernetes, and I have written CI pipelines that run the tests on every pull request.',
-];
 
 const MAX_SECONDS = 60;
 type Phase =
@@ -44,7 +36,7 @@ export function SpeechCheckCard() {
     setMic(next);
     saveMicOptions(next);
   };
-  const sentence = SENTENCES[index % SENTENCES.length]!;
+  const sentence = SPEECH_CHECK[index % SPEECH_CHECK.length]!.text;
 
   useEffect(() => {
     let active = true;
