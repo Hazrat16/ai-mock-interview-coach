@@ -34,6 +34,8 @@ const seedQuestionSchema = z.object({
   text: z.string().min(10),
   family: z.enum(JOB_FAMILIES).optional(),
   tracks: z.array(z.enum(TRACKS)).min(1).optional(),
+  /** The interview-ready answer, for questions that do not depend on the candidate's own experience. */
+  answer: z.string().min(1).optional(),
   levels: z.tuple([z.enum(LEVELS), z.enum(LEVELS)]),
   difficulty: z.enum(DIFFICULTIES),
   skills: z.array(z.string()).min(1),
@@ -56,6 +58,7 @@ export const levelIndex = (level: Level) => LEVELS.indexOf(level);
 type NewQuestion = Omit<Question, 'id'> & {
   provenance: 'verified' | 'user_provided' | 'generated';
   tracks?: readonly (typeof TRACKS)[number][];
+  readyAnswer?: string;
 };
 
 /** Inserts questions that are not in the bank yet; returns how many were added. */
@@ -107,16 +110,20 @@ export function seedQuestions(db: Db, dir = SEED_DIR): number {
         skills: q.skills,
         expectedPoints: q.expected,
         tracks: q.tracks,
+        readyAnswer: q.answer,
         source: 'seed',
         provenance: 'verified',
       });
     }
   }
   const added = insertQuestions(db, questions);
-  // Seed questions stored by an earlier version keep their ids (history points at them) but take the current tracks.
-  const setTracks = db.prepare(`UPDATE questions SET tracks_json = ? WHERE text_hash = ? AND source = 'seed'`);
+  // Seed questions stored by an earlier version keep their ids (history points at them) but take the current
+  // tracks and answers.
+  const refresh = db.prepare(
+    `UPDATE questions SET tracks_json = ?, ready_answer = ? WHERE text_hash = ? AND source = 'seed'`,
+  );
   transaction(db, () => {
-    for (const q of questions) setTracks.run(JSON.stringify(q.tracks ?? []), textHash(q.text));
+    for (const q of questions) refresh.run(JSON.stringify(q.tracks ?? []), q.readyAnswer ?? null, textHash(q.text));
   });
   return added;
 }

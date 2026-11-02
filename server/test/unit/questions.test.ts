@@ -72,15 +72,30 @@ describe('question bank', () => {
     }
   });
 
-  it('gives seed questions from an earlier version their tracks, keeping their ids', async () => {
+  it('stores an answer for every question that does not depend on your own experience', async () => {
+    const { db } = await seededDb();
+    const rows = db.prepare('SELECT interview_type AS type, ready_answer AS answer FROM questions').all() as {
+      type: string;
+      answer: string | null;
+    }[];
+    for (const r of rows) {
+      if (r.type === 'hr' || r.type === 'behavioral') expect(r.answer).toBeNull();
+      else expect(r.answer?.split(/\s+/).length).toBeLessThanOrEqual(180); // as the model's answers (readyAnswer.ts)
+    }
+  });
+
+  it('gives seed questions from an earlier version their tracks and answers, keeping their ids', async () => {
     const { db } = await seededDb();
     const text = 'Explain how the JavaScript event loop works.';
-    db.prepare(`UPDATE questions SET tracks_json = '[]' WHERE text = ?`).run(text);
+    db.prepare(`UPDATE questions SET tracks_json = '[]', ready_answer = NULL WHERE text = ?`).run(text);
     const before = db.prepare('SELECT id FROM questions WHERE text = ?').get(text);
     expect(seedQuestions(db)).toBe(0);
     expect(db.prepare('SELECT id, tracks_json FROM questions WHERE text = ?').get(text)).toEqual({
       ...before,
       tracks_json: '["backend","frontend"]',
+    });
+    expect(db.prepare('SELECT ready_answer FROM questions WHERE text = ?').get(text)).toEqual({
+      ready_answer: expect.stringContaining('call stack'),
     });
   });
 });

@@ -19,7 +19,7 @@ import { getTurns } from '../db/repos/sessions';
 import { OllamaError, OllamaUnavailableError, type OllamaClient } from '../llm/ollamaClient';
 import { StructuredOutputError } from '../llm/structured';
 import { evaluate, type EvaluationInput } from './evaluator';
-import { prepareReadyAnswer } from './readyAnswer';
+import { prepareReadyAnswer, readyAnswerResult } from './readyAnswer';
 import { rubricByKey } from './rubrics';
 
 export type RunnerDeps = {
@@ -39,8 +39,14 @@ export type RunnerDeps = {
   scoring?: boolean;
 };
 
+/** Recorded as the model of an answer that came from the question bank. */
+const STORED_ANSWER_MODEL = 'question-bank';
+
 /** Everything the evaluator needs for one main question: its exchange, config and expected points. */
-export function loadInput(db: Db, evaluationId: string): { input: EvaluationInput; model: string } {
+export function loadInput(
+  db: Db,
+  evaluationId: string,
+): { input: EvaluationInput; model: string; storedAnswer: string | null } {
   const ev = getEvaluation(db, evaluationId);
   if (!ev) throw new Error(`evaluation ${evaluationId} not found`);
   const rubric = rubricByKey(ev.rubricKey);
@@ -60,17 +66,18 @@ export function loadInput(db: Db, evaluationId: string): { input: EvaluationInpu
   const exchange = turns
     .filter((t) => t.id === at.turn_id || t.parentTurnId === at.turn_id)
     .map((t) => ({ kind: t.kind, question: t.questionText, answer: t.answer?.transcript ?? null }));
-  const expected = at.question_id
-    ? (db.prepare('SELECT expected_points_json FROM questions WHERE id = ?').get(at.question_id) as
-        { expected_points_json: string } | undefined)
+  const question = at.question_id
+    ? (db.prepare('SELECT expected_points_json, ready_answer FROM questions WHERE id = ?').get(at.question_id) as
+        { expected_points_json: string; ready_answer: string | null } | undefined)
     : undefined;
   return {
     model: ev.model,
+    storedAnswer: question?.ready_answer ?? null,
     input: {
       rubric,
       config: JSON.parse(at.config_snapshot_json) as InterviewConfig,
       exchange,
-      expectedPoints: expected ? (JSON.parse(expected.expected_points_json) as string[]) : [],
+      expectedPoints: question ? (JSON.parse(question.expected_points_json) as string[]) : [],
       document: sessionDocumentContext(db, at.session_id),
     },
   };
@@ -145,7 +152,18 @@ export class JobRunner {
       failEvaluation(this.deps.db, job, (err as Error).message, 0);
       return 'done';
     }
-    const { input, model } = loaded;
+    const { input, model, storedAnswer } = loaded;
+    if (storedAnswer && !(this.deps.scoring ?? SCORING)) {
+      completeEvaluation(this.deps.db, job, {
+        model: STORED_ANSWER_MODEL,
+        overall: null,
+        result: readyAnswerResult(storedAnswer),
+        unsupported: 0,
+        durationMs: 0,
+        skills: {},
+      });
+      return 'done';
+    }
     const models = [...new Set([model, this.deps.fallbackModel])];
     let lastError = '';
     for (const m of models) {

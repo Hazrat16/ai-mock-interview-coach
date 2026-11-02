@@ -55,6 +55,17 @@ Write the interview-ready answer to the main question: what a strong ${level} ${
   ];
 }
 
+/** An interview-ready answer as a report entry: no scores, nothing but the answer. */
+export const readyAnswerResult = (exampleAnswer: string): EvaluationResult => ({
+  criteria: [],
+  strengths: [],
+  mistakes: [],
+  missingConcepts: [],
+  suggestions: [],
+  exampleAnswer,
+  followUpExercise: '',
+});
+
 export async function prepareReadyAnswer(
   llm: OllamaClient,
   input: EvaluationInput,
@@ -70,14 +81,5 @@ export async function prepareReadyAnswer(
     timeoutMs: opts.timeoutMs ?? 300_000,
     signal: opts.signal,
   });
-  const result: EvaluationResult = {
-    criteria: [],
-    strengths: [],
-    mistakes: [],
-    missingConcepts: [],
-    suggestions: [],
-    exampleAnswer: reply.data.example_answer.trim(),
-    followUpExercise: '',
-  };
-  return { result, ms: Math.round(performance.now() - started) };
+  return { result: readyAnswerResult(reply.data.example_answer.trim()), ms: Math.round(performance.now() - started) };
 }

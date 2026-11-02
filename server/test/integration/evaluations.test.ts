@@ -188,6 +188,25 @@ describe('evaluation pipeline', () => {
     expect(db.prepare('SELECT COUNT(*) AS n FROM evaluation_scores').get()).toEqual({ n: 0 });
   });
 
+  it('uses the answer stored with a question, without the model', async () => {
+    await setup(() => chatReply(JSON.stringify({ example_answer: 'Never used.' })));
+    db.exec(`UPDATE questions SET ready_answer = 'A stored answer.'`);
+    const id = await finishedInterview();
+    expect(await runner({ scoring: false }).runOnce()).toBe('done');
+    const r = await report(id);
+    expect(r.items[0]!.evaluation).toMatchObject({ status: 'done', overallScore: null, model: 'question-bank' });
+    expect(r.items[0]!.evaluation!.result).toMatchObject({ exampleAnswer: 'A stored answer.' });
+    expect(fake!.requests.find(isEvaluation)).toBeUndefined();
+  });
+
+  it('scores the candidate with the model even when the question has a stored answer', async () => {
+    await setup(() => chatReply(evaluationJson(3)));
+    db.exec(`UPDATE questions SET ready_answer = 'A stored answer.'`);
+    const id = await finishedInterview();
+    expect(await runner({ scoring: true }).runOnce()).toBe('done');
+    expect((await report(id)).items[0]!.evaluation!.overallScore).not.toBeNull();
+  });
+
   it('uses the fallback model when the evaluator gives invalid output twice', async () => {
     // Score 5 is out of range: rejected by the schema, repair retried, rejected again.
     await setup((body) => chatReply(body.model === 'qwen3.5:4b' ? evaluationJson(5) : evaluationJson(2)));
