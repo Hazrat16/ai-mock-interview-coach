@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 
 test('a technical interview can focus on one area', async ({ page }) => {
   await page.goto('/interview/new');
+  await expect(page.getByLabel('Interview type')).toHaveValue('technical');
+  await page.getByLabel('Interview type').selectOption('behavioral');
   await expect(page.getByLabel('Focus')).toBeHidden();
 
   await page.getByLabel('Interview type').selectOption('technical');

@@ -30,7 +30,7 @@ const DEFAULTS: InterviewConfig = {
   jobTitle: 'Software Engineer',
   jobFamily: 'software_engineering',
   level: 'junior',
-  interviewType: 'behavioral',
+  interviewType: 'technical',
   difficulty: 'medium',
   questionCount: 5,
   thinkingTimeSec: 10,
