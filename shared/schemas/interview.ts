@@ -6,6 +6,7 @@ export const LEVELS = ['intern', 'junior', 'mid', 'senior', 'lead'] as const;
 export const INTERVIEW_TYPES = ['hr', 'behavioral', 'technical', 'coding', 'system_design'] as const;
 export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 export const JOB_FAMILIES = ['software_engineering', 'data', 'product', 'design', 'other'] as const;
+export const TRACKS = ['backend', 'frontend', 'devops', 'data'] as const;
 
 export const levelSchema = z.enum(LEVELS);
 export const interviewTypeSchema = z.enum(INTERVIEW_TYPES);
@@ -16,6 +17,8 @@ export const interviewConfigSchema = z.object({
   jobFamily: z.enum(JOB_FAMILIES),
   level: levelSchema,
   interviewType: interviewTypeSchema,
+  /** Technical interviews only: ask just this area's questions, whatever the job family. */
+  track: z.enum(TRACKS).optional(),
   /** 'adaptive' starts at medium; real adapting arrives in M12. */
   difficulty: z.enum([...DIFFICULTIES, 'adaptive']),
   questionCount: z.number().int().min(1).max(15),

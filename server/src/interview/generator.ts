@@ -3,6 +3,7 @@ import type { DocumentContext } from '@shared/schemas/documents';
 import { DIFFICULTIES, type InterviewConfig } from '@shared/schemas/interview';
 import { type OllamaClient, NUM_CTX } from '../llm/ollamaClient';
 import { structuredChat } from '../llm/structured';
+import { TRACK_NAMES } from './phrases';
 
 const generatedSchema = z.object({
   questions: z.array(
@@ -27,6 +28,7 @@ export async function generateQuestions(
   const difficulty = config.difficulty === 'adaptive' ? 'medium' : config.difficulty;
   const prompt = [
     `Write ${count} distinct ${config.interviewType.replace('_', ' ')} interview questions for a ${config.level} ${config.jobTitle} (job family: ${config.jobFamily.replace('_', ' ')}).`,
+    config.track ? `Every question must be about ${TRACK_NAMES[config.track]} work.` : '',
     `Target difficulty: ${difficulty}. Each question must be answerable out loud in two to four minutes, without writing code.`,
     'For each: the question text, its difficulty, the skills it tests (snake_case words), and 3-5 points a strong answer covers.',
     config.customInstructions ? `Candidate's focus: ${config.customInstructions}` : '',

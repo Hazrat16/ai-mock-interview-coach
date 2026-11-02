@@ -15,7 +15,7 @@ import { markReplyAudio, markResult, markSubmitted } from '@/interview/latency';
 import { type InterviewState, type LogEntry, reduce } from '@/interview/turnMachine';
 import { DEFAULT_VOICE_CONFIG } from '@/interview/voiceMachine';
 import { getJson, sendJson } from '@/lib/api';
-import { INTERVIEW_TYPE_LABELS, LEVEL_LABELS } from '@/lib/labels';
+import { INTERVIEW_TYPE_LABELS, LEVEL_LABELS, TRACK_LABELS } from '@/lib/labels';
 import { fieldClass } from '@/lib/styles';
 
 function useElapsedSeconds(running: boolean) {
@@ -132,6 +132,7 @@ function Header({ detail, mode }: { detail: SessionDetail; mode: AnswerMode }) {
   return (
     <div>
       <h1 className="text-2xl font-semibold">
+        {c.track && `${TRACK_LABELS[c.track]} `}
         {INTERVIEW_TYPE_LABELS[c.interviewType]} interview · {c.jobTitle}
       </h1>
       <p className="text-sm text-muted-foreground">

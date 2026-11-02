@@ -53,6 +53,8 @@ export const TAXONOMY: Record<InterviewConfig['jobFamily'], SkillGroup[]> = {
       skills: [
         s('databases', 'Databases'),
         s('api_design', 'API design'),
+        s('software_design', 'Software design'),
+        s('frontend', 'Frontend'),
         s('concurrency', 'Concurrency'),
         s('web_fundamentals', 'Web fundamentals'),
         s('networking', 'Networking'),

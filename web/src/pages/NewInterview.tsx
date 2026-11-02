@@ -12,6 +12,7 @@ import {
   LEVELS,
   type SessionSummary,
   sessionSummarySchema,
+  TRACKS,
 } from '@shared/schemas/interview';
 import { companySchema } from '@shared/schemas/companies';
 import { type DocumentView, documentViewSchema } from '@shared/schemas/documents';
@@ -19,7 +20,7 @@ import { settingsSchema } from '@shared/schemas/settings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getJson, sendJson } from '@/lib/api';
-import { DIFFICULTY_LABELS, INTERVIEW_TYPE_LABELS, JOB_FAMILY_LABELS, LEVEL_LABELS } from '@/lib/labels';
+import { DIFFICULTY_LABELS, INTERVIEW_TYPE_LABELS, JOB_FAMILY_LABELS, LEVEL_LABELS, TRACK_LABELS } from '@/lib/labels';
 import { fieldClass } from '@/lib/styles';
 
 const STORAGE_KEY = 'interview-coach:last-config';
@@ -141,6 +142,8 @@ export function NewInterview() {
   const basedOn = documents.find((d) => `doc:${d.id}` === source);
   const company = companies.find((c) => `company:${c}` === source);
   const assessment = source === 'assessment';
+  // A focus narrows the bank, so it means nothing for a document or a company, or outside technical interviews.
+  const showTrack = config.interviewType === 'technical' && !basedOn && !company;
 
   // New users get their default thinking time from Settings.
   useEffect(() => {
@@ -173,7 +176,13 @@ export function NewInterview() {
       const res = await sendJson(
         'POST',
         '/api/sessions',
-        { config: valid.data, onShortfall, documentId: basedOn?.id, company, assessment: assessment || undefined },
+        {
+          config: { ...valid.data, track: showTrack ? valid.data.track : undefined },
+          onShortfall,
+          documentId: basedOn?.id,
+          company,
+          assessment: assessment || undefined,
+        },
         createSessionResponseSchema,
       );
       if (res.status === 'needs_decision') {
@@ -300,6 +309,23 @@ export function NewInterview() {
                 onChange={(v) => set('interviewType', v)}
               />
             </Field>
+            {showTrack && (
+              <Field id="track" label="Focus" help="Ask only questions from this area, whatever the job family.">
+                <select
+                  id="track"
+                  className={fieldClass}
+                  value={config.track ?? ''}
+                  onChange={(e) => set('track', (e.target.value || undefined) as InterviewConfig['track'])}
+                >
+                  <option value="">All topics</option>
+                  {TRACKS.map((t) => (
+                    <option key={t} value={t}>
+                      {TRACK_LABELS[t]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
             <Field id="difficulty" label="Difficulty">
               <Select
                 id="difficulty"

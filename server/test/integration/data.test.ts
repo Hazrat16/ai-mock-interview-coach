@@ -157,7 +157,6 @@ describe('backup, delete all, restore', () => {
     mkdirSync(join(dir, 'backups'), { recursive: true });
     const old = new DatabaseSync(join(dir, 'backups', 'old.db'));
     await migrate(old, { migrations: loadMigrations().slice(0, 1) }); // before the search index
-    seedQuestions(old);
     old.exec(`
       INSERT INTO interview_configs (id, job_title, job_family, level, interview_type, difficulty, question_count, created_at)
         VALUES ('c', 'Dev', 'software_engineering', 'junior', 'technical', 'medium', 1, '2026-10-01');

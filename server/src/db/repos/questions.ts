@@ -3,7 +3,15 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { DIFFICULTIES, INTERVIEW_TYPES, JOB_FAMILIES, LEVELS, type Level } from '@shared/schemas/interview';
+import {
+  DIFFICULTIES,
+  INTERVIEW_TYPES,
+  type InterviewConfig,
+  JOB_FAMILIES,
+  LEVELS,
+  type Level,
+  TRACKS,
+} from '@shared/schemas/interview';
 import { type Db, transaction } from '../connection';
 import { newId, nowIso } from '../ids';
 
@@ -25,6 +33,7 @@ export type Question = {
 const seedQuestionSchema = z.object({
   text: z.string().min(10),
   family: z.enum(JOB_FAMILIES).optional(),
+  tracks: z.array(z.enum(TRACKS)).min(1).optional(),
   levels: z.tuple([z.enum(LEVELS), z.enum(LEVELS)]),
   difficulty: z.enum(DIFFICULTIES),
   skills: z.array(z.string()).min(1),
@@ -44,14 +53,17 @@ export const textHash = (text: string) =>
 
 export const levelIndex = (level: Level) => LEVELS.indexOf(level);
 
-type NewQuestion = Omit<Question, 'id'> & { provenance: 'verified' | 'user_provided' | 'generated' };
+type NewQuestion = Omit<Question, 'id'> & {
+  provenance: 'verified' | 'user_provided' | 'generated';
+  tracks?: readonly (typeof TRACKS)[number][];
+};
 
 /** Inserts questions that are not in the bank yet; returns how many were added. */
 export function insertQuestions(db: Db, questions: NewQuestion[]): number {
   const insert = db.prepare(
     `INSERT INTO questions (id, text, text_hash, interview_type, job_family, level_min, level_max, difficulty,
-       skill_tags_json, expected_points_json, source, provenance, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (text_hash) DO NOTHING`,
+       skill_tags_json, expected_points_json, tracks_json, source, provenance, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (text_hash) DO NOTHING`,
   );
   return transaction(db, () => {
     let added = 0;
@@ -67,6 +79,7 @@ export function insertQuestions(db: Db, questions: NewQuestion[]): number {
         q.difficulty,
         JSON.stringify(q.skills),
         JSON.stringify(q.expectedPoints),
+        JSON.stringify(q.tracks ?? []),
         q.source,
         q.provenance,
         nowIso(),
@@ -93,12 +106,19 @@ export function seedQuestions(db: Db, dir = SEED_DIR): number {
         difficulty: q.difficulty,
         skills: q.skills,
         expectedPoints: q.expected,
+        tracks: q.tracks,
         source: 'seed',
         provenance: 'verified',
       });
     }
   }
-  return insertQuestions(db, questions);
+  const added = insertQuestions(db, questions);
+  // Seed questions stored by an earlier version keep their ids (history points at them) but take the current tracks.
+  const setTracks = db.prepare(`UPDATE questions SET tracks_json = ? WHERE text_hash = ? AND source = 'seed'`);
+  transaction(db, () => {
+    for (const q of questions) setTracks.run(JSON.stringify(q.tracks ?? []), textHash(q.text));
+  });
+  return added;
 }
 
 type Row = {
@@ -127,17 +147,26 @@ const fromRow = (r: Row): Question => ({
   source: r.source,
 });
 
-/** Questions of this type that suit the job family (or any family) and the level. Any difficulty. */
-export function findCandidates(db: Db, f: { interviewType: string; jobFamily: string; level: Level }): Question[] {
+/**
+ * Questions of this type that suit the level and either the track, when one is chosen, or else the job family
+ * (or any family). A track replaces the family: Data questions must be reachable from a Software engineering setup.
+ * Any difficulty.
+ */
+export function findCandidates(
+  db: Db,
+  f: { interviewType: string; jobFamily: string; level: Level; track?: InterviewConfig['track'] },
+): Question[] {
   const rows = db
     // Not 'user' (written from your resume or a job description) or 'company' (Companies page): those are asked
     // only in interviews based on them.
     .prepare(
-      `SELECT * FROM questions WHERE interview_type = ? AND (job_family IS NULL OR job_family = ?)
+      `SELECT * FROM questions WHERE interview_type = ?1
+         AND (CASE WHEN ?3 IS NULL THEN job_family IS NULL OR job_family = ?2
+                   ELSE EXISTS (SELECT 1 FROM json_each(tracks_json) WHERE value = ?3) END)
          AND source IN ('seed', 'generated')
        ORDER BY id`,
     )
-    .all(f.interviewType, f.jobFamily) as Row[];
+    .all(f.interviewType, f.jobFamily, f.track ?? null) as Row[];
   const lvl = levelIndex(f.level);
   return rows.map(fromRow).filter((q) => levelIndex(q.levelMin) <= lvl && lvl <= levelIndex(q.levelMax));
 }

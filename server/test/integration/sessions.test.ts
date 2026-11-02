@@ -286,6 +286,37 @@ describe('interview session', () => {
   });
 });
 
+describe('choosing a technical focus', () => {
+  const technical = { ...config, interviewType: 'technical', jobFamily: 'product', questionCount: 3 } as const;
+
+  it('asks only that track, from any job family, and says so in the intro', async () => {
+    await setup();
+    const s = await startNew({ config: { ...technical, track: 'devops' } });
+    expect(s.config.track).toBe('devops');
+    expect(s.intro).toContain('DevOps technical interview for a junior Backend Engineer role');
+    const stored = db.prepare('SELECT tracks_json FROM questions WHERE text = ?').get(s.current!.text);
+    expect((stored as { tracks_json: string }).tracks_json).toContain('devops');
+  });
+
+  it('files generated questions under the track and asks the model to stay on it', async () => {
+    const prompts: string[] = [];
+    const generated = Array.from({ length: 3 }, (_, i) => ({
+      text: `How would you roll out change number ${i + 1} across a fleet of servers?`,
+      difficulty: 'medium',
+      skills: ['infrastructure'],
+      expected_points: ['rollout', 'rollback'],
+    }));
+    await setup((body) => {
+      prompts.push(JSON.stringify(body));
+      return chatReply(JSON.stringify({ questions: generated }));
+    });
+    db.exec(`UPDATE questions SET tracks_json = '[]'`);
+    const res = await create({ config: { ...technical, track: 'devops' }, onShortfall: 'generate' });
+    expect(res.body).toMatchObject({ status: 'created', questionCount: 3, generated: 3 });
+    expect(prompts.join()).toContain('must be about DevOps work');
+  });
+});
+
 describe('creating a session when the bank is short', () => {
   const big = { ...config, interviewType: 'system_design', level: 'intern', questionCount: 5 } as const;
 

@@ -172,7 +172,6 @@ describe('history', () => {
     db = openMemoryDb();
     const all = loadMigrations();
     await migrate(db, { migrations: all.slice(0, 1) });
-    seedQuestions(db);
     db.exec(`
       INSERT INTO interview_configs (id, job_title, job_family, level, interview_type, difficulty, question_count, created_at)
         VALUES ('c', 'Dev', 'software_engineering', 'junior', 'technical', 'medium', 1, '2026-10-01');

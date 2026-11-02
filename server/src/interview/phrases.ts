@@ -10,6 +10,13 @@ const TYPE_NAMES: Record<InterviewConfig['interviewType'], string> = {
   system_design: 'system design',
 };
 
+export const TRACK_NAMES: Record<NonNullable<InterviewConfig['track']>, string> = {
+  backend: 'backend',
+  frontend: 'frontend',
+  devops: 'DevOps',
+  data: 'data',
+};
+
 export const ACKS = ['Thank you.', 'Okay, thanks.', 'Got it, thank you.', 'Thanks for that.', 'All right.'];
 export const LEADS = ['Next question.', "Let's move on.", 'Here is the next one.', 'Moving on.'];
 
@@ -19,8 +26,9 @@ export const pick = (list: string[], n: number) => list[n % list.length]!;
 export function intro(config: InterviewConfig, total: number) {
   const level = config.level === 'mid' ? 'mid-level' : config.level;
   const count = total === 1 ? 'one question' : `${total} questions`;
+  const track = config.track ? `${TRACK_NAMES[config.track]} ` : '';
   return (
-    `Hello, and thanks for joining. This is a ${TYPE_NAMES[config.interviewType]} interview for a ${level} ` +
+    `Hello, and thanks for joining. This is a ${track}${TYPE_NAMES[config.interviewType]} interview for a ${level} ` +
     `${config.jobTitle} role. I have ${count} for you, and I may ask a short follow-up now and then. ` +
     `Take your time with each answer. Let's begin.`
   );

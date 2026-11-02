@@ -16,6 +16,13 @@ export const JOB_FAMILY_LABELS: Record<InterviewConfig['jobFamily'], string> = {
   other: 'Other',
 };
 
+export const TRACK_LABELS: Record<NonNullable<InterviewConfig['track']>, string> = {
+  backend: 'Backend',
+  frontend: 'Frontend',
+  devops: 'DevOps',
+  data: 'Data / ML',
+};
+
 export const LEVEL_LABELS: Record<InterviewConfig['level'], string> = {
   intern: 'Intern',
   junior: 'Junior',

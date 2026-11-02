@@ -275,6 +275,7 @@ export class InterviewEngine {
         difficulty: q.difficulty,
         skills: q.skills,
         expectedPoints: q.expected_points,
+        tracks: config.track && [config.track],
         source: 'generated',
         provenance: 'generated',
       })),
